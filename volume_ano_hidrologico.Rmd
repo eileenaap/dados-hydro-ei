@@ -1,0 +1,329 @@
+---
+title: "Listadadosshpanual"
+author: "Eileen Acosta"
+date: "2026-05-19"
+output: html_document
+---
+
+```{r}
+# ============================================================
+# Extrair Codigo, Nome, Latitude, Longitude e ArDrngm
+# ============================================================
+
+library(sf)
+library(dplyr)
+library(readr)
+
+dir_projeto <- "C:/trab/SWY_Amazonia"
+
+arquivo_estacoes <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "estacoes_selecionadas",
+  "estacoes_atualizadas_apos_2018_dentro_bacias.shp"
+)
+
+dir_saida <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "estacoes_selecionadas"
+)
+
+# Ler shapefile das estações
+estacoes <- st_read(arquivo_estacoes)
+
+# Conferir nomes das colunas
+names(estacoes)
+```
+
+## Selecionar colunas desejadas 
+
+```{r }
+# ============================================================
+# Selecionar colunas desejadas
+# ============================================================
+
+colunas_desejadas <- c(
+  "Codigo",
+  "Nome",
+  "Latitud",
+  "Longitd",
+  "ArDrngm"
+)
+
+colunas_faltando <- colunas_desejadas[
+  !colunas_desejadas %in% names(estacoes)
+]
+
+if (length(colunas_faltando) > 0) {
+  stop(
+    "Estas colunas não foram encontradas no shapefile: ",
+    paste(colunas_faltando, collapse = ", ")
+  )
+}
+
+estacoes_resumo <- estacoes %>%
+  st_drop_geometry() %>%
+  select(
+    all_of(colunas_desejadas)
+  ) %>%
+  arrange(
+    Codigo
+  )
+
+head(estacoes_resumo)
+```
+
+## Salvar tabela final
+
+
+```{r pressure, echo=FALSE}
+# ============================================================
+# Salvar tabela final
+# ============================================================
+
+arquivo_estacoes_resumo <- file.path(
+  dir_saida,
+  "estacoes_codigo_nome_lat_lon_area.csv"
+)
+
+write_csv2(
+  estacoes_resumo,
+  arquivo_estacoes_resumo
+)
+
+cat("Arquivo salvo em:\n", arquivo_estacoes_resumo, "\n")
+```
+Tabela de áreas: estacoes_codigo_nome_lat_lon_area.csv
+Tabela de volume: volume_hidrologico.csv
+Shapefile das estações: para manter a geometria no final
+
+A fórmula é:
+
+rendimento_mm_ano = volume_m3 / area_km2 / 1000
+
+assumindo que ArDrngm está em km².
+
+
+
+```{r}
+# ============================================================
+# CALCULAR RENDIMENTO HIDROLÓGICO EM mm/ano
+# USANDO VOLUME HIDROLÓGICO E ÁREA DE DRENAGEM
+# ============================================================
+
+library(sf)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(stringr)
+
+# ------------------------------------------------------------
+# Caminhos
+# ------------------------------------------------------------
+
+dir_projeto <- "C:/trab/SWY_Amazonia"
+
+arquivo_estacoes_area <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "estacoes_selecionadas",
+  "estacoes_codigo_nome_lat_lon_area.csv"
+)
+
+arquivo_volume_hidrologico <- "C:/trab/estacoes/volume_hidrologico.csv"
+
+arquivo_shp_estacoes <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "estacoes_selecionadas",
+  "estacoes_atualizadas_apos_2018_dentro_bacias.shp"
+)
+
+dir_saida <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "rendimento_hidrologico"
+)
+
+if (!dir.exists(dir_saida)) {
+  dir.create(dir_saida, recursive = TRUE)
+}
+```
+
+```{r}
+# ============================================================
+# Ler tabela de estações com área
+# ============================================================
+
+estacoes_area <- read_csv2(
+  arquivo_estacoes_area,
+  show_col_types = FALSE
+)
+
+names(estacoes_area)
+
+# Garantir que Codigo seja texto
+estacoes_area <- estacoes_area %>%
+  mutate(
+    Codigo = as.character(Codigo),
+    ArDrngm = as.numeric(ArDrngm)
+  )
+
+# ============================================================
+# Ler tabela de volume hidrológico
+# ============================================================
+
+volume_hidrologico <- read_csv2(
+  arquivo_volume_hidrologico,
+  show_col_types = FALSE
+)
+
+names(volume_hidrologico)
+head(volume_hidrologico)
+
+```
+
+```{r}
+# ============================================================
+# Juntar volume com área de drenagem e calcular rendimento
+# ============================================================
+
+rendimento_longo <- volume_longo %>%
+  left_join(
+    estacoes_area %>%
+      select(
+        Codigo,
+        Nome,
+        Latitude,
+        Longitude,
+        ArDrngm
+      ),
+    by = "Codigo"
+  ) %>%
+  mutate(
+    rendimento_mm_ano = volume_m3 / ArDrngm / 1000
+  ) %>%
+  arrange(
+    Codigo,
+    ano_hidrologico
+  )
+
+head(rendimento_longo)
+
+
+
+
+
+```
+
+
+```{r}
+# ============================================================
+# Conferir problemas
+# ============================================================
+
+estacoes_sem_area <- rendimento_longo %>%
+  filter(
+    is.na(ArDrngm)
+  ) %>%
+  distinct(
+    Codigo
+  )
+
+cat("Estações sem área de drenagem:", nrow(estacoes_sem_area), "\n")
+
+estacoes_sem_area
+
+```
+
+
+```{r}
+# ============================================================
+# Criar tabela final de rendimento em formato largo
+# ============================================================
+
+rendimento_largo <- rendimento_longo %>%
+  select(
+    Codigo,
+    Nome,
+    Latitude,
+    Longitude,
+    ArDrngm,
+    ano_hidrologico,
+    rendimento_mm_ano
+  ) %>%
+  mutate(
+    ano_hidrologico = paste0("mm_", ano_hidrologico)
+  ) %>%
+  pivot_wider(
+    names_from = ano_hidrologico,
+    values_from = rendimento_mm_ano
+  ) %>%
+  arrange(
+    Codigo
+  )
+
+head(rendimento_largo)
+
+```
+
+```{r}
+# ============================================================
+# Salvar tabela CSV com rendimento mm/ano
+# ============================================================
+
+arquivo_rendimento_csv <- file.path(
+  dir_saida,
+  "rendimento_hidrologico_mm_ano.csv"
+)
+
+write_csv2(
+  rendimento_largo,
+  arquivo_rendimento_csv
+)
+
+cat("CSV salvo em:\n", arquivo_rendimento_csv, "\n")
+```
+
+
+```{r}
+
+
+# ============================================================
+# Criar shapefile final com rendimento mm/ano
+# ============================================================
+
+estacoes_shp <- st_read(
+  arquivo_shp_estacoes
+)
+
+estacoes_shp <- estacoes_shp %>%
+  mutate(
+    Codigo = as.character(Codigo)
+  )
+
+rendimento_shp <- estacoes_shp %>%
+  left_join(
+    rendimento_largo %>%
+      select(
+        Codigo,
+        starts_with("mm_")
+      ),
+    by = "Codigo"
+  )
+
+arquivo_rendimento_shp <- file.path(
+  dir_saida,
+  "rendimento_hidrologico_mm_ano.shp"
+)
+
+st_write(
+  rendimento_shp,
+  arquivo_rendimento_shp,
+  delete_layer = TRUE
+)
+
+cat("Shapefile salvo em:\n", arquivo_rendimento_shp, "\n")
+
+```
