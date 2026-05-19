@@ -1,0 +1,307 @@
+---
+title: "filtrar estacoes"
+output: html_document
+date: "2026-05-14"
+---
+##Parte 1 — Carregar pacotes e definir caminhos
+
+```{r setup, include=FALSE}
+# ============================================================
+# Parte 1 — Pacotes e caminhos
+# ============================================================
+
+pacotes <- c(
+  "DBI",
+  "odbc",
+  "sf",
+  "dplyr",
+  "readr",
+  "lubridate"
+)
+
+pacotes_instalados <- pacotes %in% rownames(installed.packages())
+
+if (any(!pacotes_instalados)) {
+  install.packages(pacotes[!pacotes_instalados])
+}
+
+library(DBI)
+library(odbc)
+library(sf)
+library(dplyr)
+library(readr)
+library(lubridate)
+
+dir_projeto <- "C:/trab/SWY_Amazonia"
+
+arquivo_access <- file.path(
+  dir_projeto,
+  "01_dados_brutos",
+  "inventario_hidroweb",
+  "Inventario11_05_2026.mdb"
+)
+
+arquivo_shape <- file.path(
+  dir_projeto,
+  "01_dados_brutos",
+  "inventario_hidroweb",
+  "baciasv3.shp"
+)
+
+dir_saida <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "estacoes_selecionadas"
+)
+
+if (!dir.exists(dir_saida)) {
+  dir.create(dir_saida, recursive = TRUE)
+}
+
+file.exists(arquivo_access)
+file.exists(arquivo_shape)
+dir.exists(dir_saida)
+
+```
+
+Parte 2 — Ler inventário Access
+
+```{r }
+# ============================================================
+# Parte 2 — Ler tabela estacao do Access
+# ============================================================
+
+con <- dbConnect(
+  odbc(),
+  .connection_string = paste0(
+    "Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
+    "DBQ=", arquivo_access, ";"
+  )
+)
+
+dbListTables(con)
+
+inventario <- dbReadTable(con, "estacao")
+
+dbDisconnect(con)
+
+dim(inventario)
+names(inventario)
+head(inventario)
+```
+
+Parte 3 — Definir colunas e filtrar atualizações depois de 2018
+
+```{r }
+# ============================================================
+# Parte 3 — Filtrar estações com:
+#           - Latitude e Longitude válidas
+#           - TipoEstacao = 1 1: sao estacoes hidrologicas, 2: sao estações pluviométricas
+#           - TipoRedeCursoDagua diferente de 0
+#           - PeriodoTelemetrica Fim da vazio OU em 2023 ou atualizacao depois de 2018
+# ============================================================
+
+#Verificar na geodatabase as columnas que você precisa modificar
+
+col_lat <- "Latitude"
+col_lon <- "Longitude"
+col_tipo_estacao <- "TipoEstacao"
+col_tipo_rede_curso_dagua <- "TipoRedeCursoDagua"
+col_periodo_telemetrica_fim <- "PeriodoTelemetricaFim"
+
+data_minima_atualizacao <- as.Date("2018-10-01")
+
+# Verificar se as colunas necessárias existem no inventário de geodabase
+colunas_necessarias <- c(
+  col_lat,
+  col_lon,
+  col_tipo_estacao,
+  col_tipo_rede_curso_dagua,
+  col_periodo_telemetrica_fim
+)
+
+colunas_faltando <- colunas_necessarias[
+  !colunas_necessarias %in% names(inventario)
+]
+
+if (length(colunas_faltando) > 0) {
+  stop(
+    "Estas colunas não foram encontradas: ",
+    paste(colunas_faltando, collapse = ", ")
+  )
+}
+
+# Aplicar filtros
+inventario_filtrado_data <- inventario %>%
+  mutate(
+    PeriodoTelemetricaFim_date = as.Date(.data[[col_periodo_telemetrica_fim]])
+  ) %>%
+  filter(
+    !is.na(.data[[col_lat]]),
+    !is.na(.data[[col_lon]]),
+    .data[[col_tipo_estacao]] == 1,
+    .data[[col_tipo_rede_curso_dagua]] != 0,
+    is.na(PeriodoTelemetricaFim_date) |
+      PeriodoTelemetricaFim_date >= data_minima_atualizacao
+  )
+
+# Conferir resultado dos filtros
+cat("\nTotal no inventário:", nrow(inventario), "\n")
+cat("Total após filtros:", nrow(inventario_filtrado_data), "\n")
+
+cat("\nResumo de PeriodoTelemetricaFim_date:\n")
+print(summary(inventario_filtrado_data$PeriodoTelemetricaFim_date))
+
+cat("\nQuantidade com PeriodoTelemetricaFim vazio, consideradas ativas:\n")
+print(sum(is.na(inventario_filtrado_data$PeriodoTelemetricaFim_date)))
+
+cat("\nQuantidade com PeriodoTelemetricaFim >= 2023-01-01:\n")
+print(sum(
+  !is.na(inventario_filtrado_data$PeriodoTelemetricaFim_date) &
+    inventario_filtrado_data$PeriodoTelemetricaFim_date >= as.Date("2023-01-01")
+))
+
+cat("\nContagem por TipoEstacao:\n")
+print(
+  inventario_filtrado_data %>%
+    count(.data[[col_tipo_estacao]])
+)
+
+cat("\nData mínima usada no filtro:", as.character(data_minima_atualizacao), "\n")
+
+cat("\nQuantidade com PeriodoTelemetricaFim >=", as.character(data_minima_atualizacao), ":\n")
+print(sum(
+  !is.na(inventario_filtrado_data$PeriodoTelemetricaFim_date) &
+    inventario_filtrado_data$PeriodoTelemetricaFim_date >= data_minima_atualizacao
+))
+
+
+cat("\nContagem por TipoRedeCursoDagua:\n")
+print(
+  inventario_filtrado_data %>%
+    count(.data[[col_tipo_rede_curso_dagua]])
+)
+
+```
+Parte 4 — Ler shapefile e transformar para WGS84
+
+```{r}
+# ============================================================
+# Parte 4 — Ler bacias, transformar e corrigir geometria
+# ============================================================
+
+library(sf)
+library(dplyr)
+
+# Ler shapefile original
+bacias <- st_read(arquivo_shape)
+
+# Ver CRS original
+st_crs(bacias)
+
+# Corrigir geometrias inválidas ANTES de transformar
+bacias_corrigidas <- st_make_valid(bacias)
+
+# Transformar para WGS84
+bacias_wgs84 <- st_transform(bacias_corrigidas, 4326)
+
+# Corrigir novamente depois da transformação, por segurança
+bacias_wgs84 <- st_make_valid(bacias_wgs84)
+
+# Remover geometrias vazias, se existirem
+bacias_wgs84 <- bacias_wgs84[!st_is_empty(bacias_wgs84), ]
+
+# Conferir validade
+table(st_is_valid(bacias_wgs84))
+
+# Visualizar
+plot(st_geometry(bacias_wgs84))
+
+```
+
+Parte 5 —  Converter estações filtradas para pontos espaciais
+```{r}
+# ============================================================
+# Parte 5 — Converter estações filtradas para pontos espaciais
+# ============================================================
+
+estacoes_filtradas_sf <- inventario_filtrado_data %>%
+  st_as_sf(
+    coords = c(col_lon, col_lat),
+    crs = 4326,
+    remove = FALSE
+  )
+
+st_crs(estacoes_filtradas_sf)
+
+nrow(estacoes_filtradas_sf)
+
+```
+Parte 6 corrigida — Filtrar estações dentro das bacias
+
+```{r}
+# ============================================================
+# Parte 6 corrigida — Filtrar estações dentro das bacias
+# ============================================================
+
+# Garantir que as estações também estejam válidas
+estacoes_filtradas_sf <- st_make_valid(estacoes_filtradas_sf)
+
+# Selecionar estações dentro das bacias
+estacoes_atualizadas_dentro_bacias <- estacoes_filtradas_sf %>%
+  st_filter(bacias_wgs84, .predicate = st_within)
+
+# Conferir resultado
+nrow(estacoes_filtradas_sf)
+nrow(estacoes_atualizadas_dentro_bacias)
+```
+
+Parte 7 — Plotar resultado finalv
+```{r}
+
+
+# ============================================================
+# Parte 7 — Plotar bacias e estações finais
+# ============================================================
+
+plot(st_geometry(bacias_wgs84))
+plot(
+  st_geometry(estacoes_atualizadas_dentro_bacias),
+  add = TRUE,
+  pch = 20,
+  cex = 0.6
+)
+```
+
+Parte 8 — Salvar resultados
+
+```{r}
+# ============================================================
+# Parte 8 — Salvar estações finais
+# ============================================================
+
+arquivo_csv_final <- file.path(
+  dir_saida,
+  "estacoes_atualizadas_apos_2018_dentro_bacias.csv"
+)
+
+arquivo_shp_final <- file.path(
+  dir_saida,
+  "estacoes_atualizadas_apos_2018_dentro_bacias.shp"
+)
+
+write_csv(
+  estacoes_atualizadas_dentro_bacias %>% st_drop_geometry(),
+  arquivo_csv_final
+)
+
+st_write(
+  estacoes_atualizadas_dentro_bacias,
+  arquivo_shp_final,
+  delete_layer = TRUE
+)
+
+file
+file.exists(arquivo_shp_final)
+
+```
