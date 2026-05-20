@@ -111,7 +111,7 @@ arquivo_grafico_variacao <- file.path(
 # ------------------------------------------------------------
 
 ano_final <- 2024
-n_anos_media <- 5
+n_anos_media <- 11
 
 # ------------------------------------------------------------
 # Verificar arquivos de entrada
@@ -251,10 +251,6 @@ names(tabela_final)
 # PARTE 7 — CALCULAR MÉDIA DOS ANOS DE RENDIMENTO
 #            Selecionando os últimos 5 anos até o ano final
 # ============================================================
-
-# Escolha aqui o ano final e a quantidade de anos
-ano_final <- 2024
-n_anos_media <- 5
 
 anos_media <- (ano_final - n_anos_media + 1):ano_final
 
@@ -547,158 +543,297 @@ cat("Gráfico com variação salvo em:\n", arquivo_grafico_variacao, "\n")
 
 ```{r}
 # ============================================================
-# LER TABELA DE VAZÕES
+# PARTE 12 — MAPA DO DESVIO PADRÃO COM BACIAS
 # ============================================================
 
-library(dplyr)
-library(tidyr)
-library(lubridate)
-library(readr)
+library(sf)
 library(ggplot2)
-library(stringr)
+library(dplyr)
 
-arquivo_vazoes <- "C:/trab/estacoes/tabela_vazoes.csv"
+# ------------------------------------------------------------
+# Caminho do shapefile das bacias
+# Coloque este arquivo dentro de C:/trab/estacoes/input_compara
+# ------------------------------------------------------------
 
-tabela_vazoes <- read_csv2(
-  arquivo_vazoes,
-  show_col_types = FALSE
+arquivo_bacias <- file.path(
+  dir_input,
+  "baciasv3.shp"
 )
 
-tabela_vazoes <- tabela_vazoes %>%
-  mutate(
-    Data = as.Date(Data)
-  )
-# ============================================================
-# ORGANIZAR VAZÕES EM FORMATO LONGO
-# Excluir ano 2026
-# ============================================================
+cat("Bacias existem? ", file.exists(arquivo_bacias), "\n")
 
-vazoes_longas_grafico <- tabela_vazoes %>%
-  pivot_longer(
-    cols = -Data,
-    names_to = "Codigo",
-    values_to = "Vazao"
-  ) %>%
-  mutate(
-    Ano = year(Data),
-    Mes = month(Data),
-    Vazao = as.numeric(Vazao)
-  ) %>%
+if (!file.exists(arquivo_bacias)) {
+  stop("Shapefile de bacias não encontrado: ", arquivo_bacias)
+}
+
+# ------------------------------------------------------------
+# Ler shapefiles
+# ------------------------------------------------------------
+
+shp_compara <- st_read(
+  arquivo_saida_shp
+)
+
+bacias <- st_read(
+  arquivo_bacias
+)
+
+# ------------------------------------------------------------
+# Ajustar CRS
+# ------------------------------------------------------------
+
+bacias <- st_transform(
+  bacias,
+  st_crs(shp_compara)
+)
+
+# ------------------------------------------------------------
+# Conferir coluna de desvio padrão
+# ------------------------------------------------------------
+
+if (!"sd_mm" %in% names(shp_compara)) {
+  stop("A coluna 'sd_mm' não foi encontrada no shapefile.")
+}
+
+shp_sd <- shp_compara %>%
   filter(
-    Ano != 2026,
-    !is.na(Vazao)
+    !is.na(sd_mm),
+    is.finite(sd_mm)
   )
 
-head(vazoes_longas_grafico)
+# ------------------------------------------------------------
+# Criar mapa
+# ------------------------------------------------------------
 
-# ============================================================
-# GRÁFICO 1 — VAZÃO MÉDIA ANUAL POR ESTAÇÃO
-# ============================================================
-
-vazao_anual <- vazoes_longas_grafico %>%
-  group_by(
-    Codigo,
-    Ano
-  ) %>%
-  summarise(
-    vazao_media_anual = mean(Vazao, na.rm = TRUE),
-    dias_com_dado = n(),
-    .groups = "drop"
-  )
-
-grafico_vazao_anual <- ggplot(
-  vazao_anual,
-  aes(
-    x = Ano,
-    y = vazao_media_anual,
-    group = Codigo
-  )
-) +
-  geom_line(alpha = 0.5) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  labs(
-    title = "Comportamento anual da vazão por estação",
-    subtitle = "Vazão média anual — ano 2026 excluído",
-    x = "Ano",
-    y = "Vazão média anual (m³/s)"
+mapa_sd_bacias <- ggplot() +
+  geom_sf(
+    data = bacias,
+    fill = NA,
+    color = "gray50",
+    linewidth = 0.4
   ) +
-  theme_bw()
-
-grafico_vazao_anual
-ggsave(
-  filename = "C:/trab/estacoes/grafico_vazao_media_anual.png",
-  plot = grafico_vazao_anual,
-  width = 10,
-  height = 6,
-  dpi = 300
-)
-# ============================================================
-# GRÁFICO 2 — MÉDIA GERAL ANUAL DAS ESTAÇÕES
-# ============================================================
-
-vazao_anual_geral <- vazao_anual %>%
-  group_by(Ano) %>%
-  summarise(
-    media_geral = mean(vazao_media_anual, na.rm = TRUE),
-    min_geral = min(vazao_media_anual, na.rm = TRUE),
-    max_geral = max(vazao_media_anual, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-grafico_vazao_anual_geral <- ggplot(
-  vazao_anual_geral,
-  aes(
-    x = Ano,
-    y = media_geral
-  )
-) +
-  geom_ribbon(
+  geom_sf(
+    data = shp_sd,
     aes(
-      ymin = min_geral,
-      ymax = max_geral
+      color = sd_mm
     ),
-    alpha = 0.2
+    size = 2.8
   ) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
+  scale_color_viridis_c(
+    option = "plasma",
+    name = "Desvio padrão\n(mm/ano)"
+  ) +
   labs(
-    title = "Comportamento anual médio da vazão",
-    subtitle = "Linha = média das estações | Faixa = mínimo-máximo entre estações | 2026 excluído",
-    x = "Ano",
-    y = "Vazão média anual (m³/s)"
+    title = "Desvio padrão do rendimento hídrico",
+    subtitle = "Pontos por estação com bacias de referência",
+    caption = "Desvio padrão calculado com os anos usados na média"
   ) +
   theme_bw()
 
-grafico_vazao_anual_geral
-ggsave(
-  filename = "C:/trab/estacoes/grafico_vazao_media_anual_geral.png",
-  plot = grafico_vazao_anual_geral,
-  width = 9,
-  height = 6,
-  dpi = 300
+mapa_sd_bacias
+
+
+```
+
+```{r}
+# ============================================================
+# PARTE 13 — CALCULAR COEFICIENTE DE VARIAÇÃO ENTRE OS ANOS
+# ============================================================
+
+num_seguro <- function(x) {
+  if (is.numeric(x)) {
+    return(x)
+  }
+  
+  x <- as.character(x)
+  x <- trimws(x)
+  
+  # Se tiver vírgula decimal: "1.234,56"
+  if (any(grepl(",", x), na.rm = TRUE)) {
+    return(readr::parse_number(
+      x,
+      locale = readr::locale(decimal_mark = ",", grouping_mark = ".")
+    ))
+  }
+  
+  # Se estiver no formato do R: "1234.56" ou "1.461153e+03"
+  as.numeric(x)
+}
+
+tabela_final <- tabela_final %>%
+  mutate(
+    media_mm = num_seguro(media_mm),
+    sd_mm    = num_seguro(sd_mm),
+    QF_v2    = num_seguro(QF_v2)
+  ) %>%
+  mutate(
+    cv_percentual = ifelse(
+      !is.na(media_mm) & media_mm > 0,
+      sd_mm / media_mm * 100,
+      NA_real_
+    ),
+    classe_cv = case_when(
+      is.na(cv_percentual) ~ NA_character_,
+      cv_percentual < 20 ~ "baixa",
+      cv_percentual >= 20 & cv_percentual < 40 ~ "moderada",
+      cv_percentual >= 40 & cv_percentual < 60 ~ "alta",
+      cv_percentual >= 60 ~ "muito_alta"
+    )
+  )
+```
+
+```{r}
+# ============================================================
+# PARTE 14 — SALVAR SHAPEFILE FINAL COM CV
+# ============================================================
+
+pontos_shp_final <- pontos_com_id %>%
+  left_join(
+    valores_extraidos,
+    by = "ID"
+  ) %>%
+  select(
+    -ID
+  ) %>%
+  left_join(
+    tabela_final %>%
+      select(
+        Codigo,
+        all_of(colunas_mm_existentes),
+        n_anos_validos,
+        media_mm,
+        min_mm,
+        max_mm,
+        sd_mm,
+        cv_percentual,
+        classe_cv
+      ),
+    by = "Codigo"
+  ) %>%
+  rename(
+    cv_pct = cv_percentual,
+    cv_cls = classe_cv
+  )
+
+st_write(
+  pontos_shp_final,
+  arquivo_saida_shp,
+  delete_layer = TRUE
 )
+
+cat("Shapefile atualizado com CV salvo em:\n", arquivo_saida_shp, "\n")
+
 ```
 
 
-```{R}
+```{r}
 # ============================================================
-# GRÁFICO 3 — DISTRIBUIÇÃO ANUAL DAS VAZÕES
+# PARTE 15 — QUICKFLOW DENTRO DA FAIXA OBSERVADA?
 # ============================================================
 
-grafico_boxplot_anual <- ggplot(
-  vazao_anual,
+dados_faixa <- tabela_final %>%
+  filter(
+    !is.na(media_mm),
+    !is.na(min_mm),
+    !is.na(max_mm),
+    !is.na(QF_v2),
+    is.finite(media_mm),
+    is.finite(min_mm),
+    is.finite(max_mm),
+    is.finite(QF_v2)
+  ) %>%
+  mutate(
+    qf_dentro_faixa = QF_v2 >= min_mm & QF_v2 <= max_mm,
+    classe_qf_faixa = case_when(
+      qf_dentro_faixa ~ "dentro_da_faixa",
+      QF_v2 < min_mm ~ "abaixo_da_faixa",
+      QF_v2 > max_mm ~ "acima_da_faixa",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  arrange(media_mm) %>%
+  mutate(
+    Codigo_ord = factor(Codigo, levels = unique(Codigo))
+  )
+
+cat("Resumo da comparação QuickFlow vs faixa observada:\n")
+print(
+  dados_faixa %>%
+    count(classe_qf_faixa)
+)
+
+# Atualizar tabela_final com a classificação
+# Remove colunas antigas caso este chunk seja executado mais de uma vez
+tabela_final <- tabela_final %>%
+  select(
+    -any_of(c("qf_dentro_faixa", "classe_qf_faixa"))
+  ) %>%
+  left_join(
+    dados_faixa %>%
+      select(
+        Codigo,
+        qf_dentro_faixa,
+        classe_qf_faixa
+      ),
+    by = "Codigo"
+  )
+
+
+```
+
+
+```{r}
+
+# ============================================================
+# PARTE 16 — GRÁFICO QUICKFLOW VS FAIXA OBSERVADA
+#            X = estação
+#            Linha vertical = mínimo-máximo dos anos analisados
+#            Ponto preto = média observada
+#            Ponto colorido = QuickFlow
+# ============================================================
+
+grafico_faixa_quickflow <- ggplot(
+  dados_faixa,
   aes(
-    x = factor(Codigo),
-    y = vazao_media_anual
+    x = Codigo_ord
   )
 ) +
-  geom_boxplot() +
-  scale_y_log10() +
+  geom_segment(
+    aes(
+      y = min_mm,
+      yend = max_mm,
+      xend = Codigo_ord
+    ),
+    linewidth = 0.7,
+    alpha = 0.6,
+    color = "gray40"
+  ) +
+  geom_point(
+    aes(
+      y = media_mm
+    ),
+    size = 2,
+    color = "black"
+  ) +
+  geom_point(
+    aes(
+      y = QF_v2,
+      color = classe_qf_faixa
+    ),
+    size = 2.6
+  ) +
   labs(
-    title = "Distribuição da vazão média anual entre estações",
-    subtitle = "Cada boxplot representa os anos de uma estação | 2026 excluído",
-    x = "Código da estação",
-    y = "Vazão média anual (m³/s) - escala logarítmica"
+    title = "QuickFlow comparado à faixa anual observada",
+    subtitle = paste0(
+      "Anos usados: ",
+      min(anos_media),
+      "–",
+      max(anos_media),
+      " | Linha = mínimo–máximo | Preto = média observada | Colorido = QuickFlow"
+    ),
+    x = "Estação",
+    y = "Rendimento hídrico (mm/ano)",
+    color = "QuickFlow"
   ) +
   theme_bw() +
   theme(
@@ -706,19 +841,56 @@ grafico_boxplot_anual <- ggplot(
       angle = 90,
       vjust = 0.5,
       hjust = 1,
-      size = 3
+      size = 5
     )
   )
 
-grafico_boxplot_anual
+grafico_faixa_quickflow
+
+arquivo_grafico_faixa <- file.path(
+  dir_saida,
+  "grafico_quickflow_dentro_faixa_observada_estacao_x.png"
+)
 
 ggsave(
-  filename = "C:/trab/estacoes/grafico_boxplot_vazao_anual.png",
-  plot = grafico_boxplot_anual,
-  width = 12,
+  filename = arquivo_grafico_faixa,
+  plot = grafico_faixa_quickflow,
+  width = 24,
   height = 7,
   dpi = 300
 )
 
+cat("Gráfico salvo em:\n", arquivo_grafico_faixa, "\n")
+
+# ============================================================
+# PARTE 17 — SALVAR TABELA DA COMPARAÇÃO FINAL
+# ============================================================
+
+arquivo_tabela_faixa <- file.path(
+  dir_saida,
+  "comparacao_quickflow_faixa_observada.csv"
+)
+
+write_csv2(
+  dados_faixa %>%
+    select(
+      Codigo,
+      media_mm,
+      min_mm,
+      max_mm,
+      sd_mm,
+      cv_percentual,
+      classe_cv,
+      QF_v2,
+      qf_dentro_faixa,
+      classe_qf_faixa
+    ),
+  arquivo_tabela_faixa
+)
+
+cat("Tabela salva em:\n", arquivo_tabela_faixa, "\n")
 
 ```
+
+
+
