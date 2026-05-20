@@ -891,6 +891,73 @@ write_csv2(
 cat("Tabela salva em:\n", arquivo_tabela_faixa, "\n")
 
 ```
+```{r}
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# transformar pontos em sf
+pontos_qf <- st_as_sf(
+  dados_normais,
+  coords = c("Longitd", "Latitud"),
+  crs = 4326
+)
+
+# colocar no mesmo CRS das bacias
+pontos_qf <- st_transform(pontos_qf, st_crs(bacias))
+
+# organizar as classes na ordem desejada
+pontos_qf <- pontos_qf %>%
+  mutate(
+    classe_qf_faixa = factor(
+      classe_qf_faixa,
+      levels = c(
+        "abaixo_da_faixa",
+        "dentro_da_faixa",
+        "acima_da_faixa"
+      )
+    )
+  )
+
+# mapa com bacias + pontos classificados
+ggplot() +
+  geom_sf(
+    data = bacias,
+    fill = "gray95",
+    color = "gray40",
+    linewidth = 0.4
+  ) +
+  geom_sf(
+    data = pontos_qf,
+    aes(
+      color = classe_qf_faixa,
+      size = classe_qf_faixa
+    ),
+    alpha = 0.9
+  ) +
+  scale_color_manual(
+    values = c(
+      "abaixo_da_faixa" = "blue",
+      "dentro_da_faixa" = "darkgreen",
+      "acima_da_faixa"  = "red"
+    ),
+    na.value = "black"
+  ) +
+  scale_size_manual(
+    values = c(
+      "abaixo_da_faixa" = 1,
+      "dentro_da_faixa" = 1,
+      "acima_da_faixa"  = 2
+    )
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Classificação do Quickflow em relação à faixa observada",
+    subtitle = "Pontos classificados sobre as bacias",
+    color = "Classe QF",
+    size = "Classe QF"
+  )
+```
 
 
 
