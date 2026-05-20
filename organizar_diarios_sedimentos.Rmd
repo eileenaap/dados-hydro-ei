@@ -1,0 +1,341 @@
+---
+title: "organizar_dados_hidroweb de descarga sólida e vazão para calcular a concetração"
+author: "Eileen Acosta"
+date: "2026-05-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# ============================================================
+# CONFIGURAÇÕES GERAIS
+# ============================================================
+
+# Pacotes necessários
+pacotes <- c(
+  "fs",
+  "stringr",
+  "purrr",
+  "tibble",
+  "dplyr",
+  "readr",
+  "tidyr",
+  "lubridate"
+)
+
+# Instalar pacotes que ainda não estão instalados
+pacotes_instalados <- pacotes %in% rownames(installed.packages())
+
+if (any(!pacotes_instalados)) {
+  install.packages(pacotes[!pacotes_instalados])
+}
+
+# Carregar pacotes
+library(fs)
+library(stringr)
+library(purrr)
+library(tibble)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(lubridate)
+
+# Caminhos principais
+dir_base <- "C:/trab/estacoes"
+
+dir_origem <- file.path(
+  dir_base,
+  "Estacoes_AML_Hidroweb"
+)
+
+dir_sedimentos <- file.path(
+  dir_base,
+  "sedimentos"
+)
+
+arquivo_saida <- file.path(
+  dir_base,
+  "tabela_sedimentos.csv"
+)
+
+arquivo_relatorio_copia <- file.path(
+  dir_sedimentos,
+  "relatorio_copia_sedimetos.csv"
+)
+
+# Anos de interesse
+anos_interesse <- 2014:2025
+
+# Criar pasta de vazões, se ainda não existir
+if (!dir.exists(dir_sedimentos)) {
+  dir.create(dir_sedimentos, recursive = TRUE)
+}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Passo 1 — Copiar arquivos de vazão para uma pasta única
+
+```{r }
+
+# ============================================================
+# PASSO 1 — COPIAR ARQUIVOS COM "sedimentos" PARA UMA PASTA ÚNICA
+# ============================================================
+
+# Procurar todos os arquivos que têm sedimentos
+arquivos_sedimentos_origem <- dir_ls(
+  path = dir_origem,
+  recurse = TRUE,
+  type = "file"
+) %>%
+  .[str_detect(
+    basename(.),
+    regex("Sedimentos", ignore_case = TRUE)
+  )]
+
+cat("Arquivos de sedimentos encontrados:", length(arquivos_sedimentos_origem), "\n")
+
+# Copiar arquivos encontrados para a pasta única
+relatorio_copia <- map_dfr(
+  arquivos_sedimentos_origem,
+  function(arquivo_origem) {
+    
+    arquivo_destino <- file.path(
+      dir_sedimentos,
+      basename(arquivo_origem)
+    )
+    
+    ok <- file.copy(
+      from = arquivo_origem,
+      to = arquivo_destino,
+      overwrite = TRUE
+    )
+    
+    tibble(
+      arquivo_origem = arquivo_origem,
+      arquivo_destino = arquivo_destino,
+      status = ifelse(ok, "copiado", "erro")
+    )
+  }
+)
+
+# Resumo da cópia
+relatorio_copia %>%
+  count(status)
+
+# Salvar relatório da cópia
+write_csv(
+  relatorio_copia,
+  arquivo_relatorio_copia
+)
+
+```
+
+## Passo 2 — Listar arquivos de sedimentos copiados
+
+```{r}
+# ============================================================
+# PASSO 2 — LISTAR ARQUIVOS DE sedimentos COPIADOS
+# ============================================================
+
+arquivos_sedimentos <- list.files(
+  path = dir_sedimentos,
+  pattern = "Sedimentos|sedimentos",
+  full.names = TRUE
+)
+
+cat("Arquivos de sedimentos na pasta final:", length(arquivos_sedimentos), "\n")
+
+head(arquivos_sedimentos)
+
+```
+
+
+Passo 3 — Criar função para processar um arquivo
+
+```{r}
+# ============================================================
+# PASSO 3 — FUNÇÃO PARA PROCESSAR ARQUIVO DE SEDIMENTOS
+#
+# Este arquivo já tem:
+# - Data
+# - Vazao
+# - ConcentracaoMatSuspensao
+#
+# Não usar Vazao01, Vazao02, etc.
+# ============================================================
+
+processar_arquivo_sed <- function(arquivo) {
+  
+  message("Processando: ", basename(arquivo))
+  
+  dados <- read_delim(
+    file = arquivo,
+    delim = ";",
+    skip = 12,
+    locale = locale(
+      decimal_mark = ",",
+      grouping_mark = ".",
+      encoding = "Latin1"
+    ),
+    show_col_types = FALSE,
+    progress = FALSE
+  )
+  
+  names(dados) <- str_trim(names(dados))
+  
+  colunas_necessarias <- c(
+    "EstacaoCodigo",
+    "Data",
+    "Vazao",
+    "ConcentracaoMatSuspensao"
+  )
+  
+  colunas_faltando <- colunas_necessarias[
+    !colunas_necessarias %in% names(dados)
+  ]
+  
+  if (length(colunas_faltando) > 0) {
+    warning(
+      "Colunas não encontradas em ",
+      basename(arquivo),
+      ": ",
+      paste(colunas_faltando, collapse = ", ")
+    )
+    return(tibble())
+  }
+  
+  dados_processados <- dados %>%
+    transmute(
+      Codigo = as.character(EstacaoCodigo),
+      Data = dmy(Data),
+      
+      vazao = parse_number(
+        as.character(Vazao),
+        locale = locale(decimal_mark = ",", grouping_mark = ".")
+      ),
+      
+      sed = parse_number(
+        as.character(ConcentracaoMatSuspensao),
+        locale = locale(decimal_mark = ",", grouping_mark = ".")
+      ),
+      
+      carga_sed_t_dia = vazao * sed * 0.0864
+    ) %>%
+    filter(
+      !is.na(Data),
+      year(Data) %in% anos_interesse
+    ) %>%
+    arrange(
+      Codigo,
+      Data
+    )
+  
+  return(dados_processados)
+}
+```
+
+##Passo 4 — Processar todos os arquivos
+
+```{r}
+# ============================================================
+# PASSO 4 — PROCESSAR TODOS OS ARQUIVOS DE SEDIMENTOS
+# ============================================================
+
+sedimentos_longos <- map_dfr(
+  arquivos_sedimentos,
+  processar_arquivo_sed
+)
+
+cat("Total de registros processados:", nrow(sedimentos_longos), "\n")
+
+head(sedimentos_longos)
+
+summary(sedimentos_longos$vazao)
+summary(sedimentos_longos$sed)
+summary(sedimentos_longos$carga_sed_t_dia)
+
+# ============================================================
+# EXPORTAR TABELA sedimentos_longos SEM MODIFICAR
+# ============================================================
+
+arquivo_sedimentos_longos <- file.path(
+  dir_base,
+  "sedimentos_longos.csv"
+)
+
+write_csv2(
+  sedimentos_longos,
+  arquivo_sedimentos_longos
+)
+
+cat("Tabela exportada em:\n", arquivo_sedimentos_longos, "\n")
+
+```
+
+##Passo 5 —  EXPORTAR TABELA DE CARGA DE SEDIMENTOS
+
+```{r}
+# ============================================================
+# EXPORTAR TABELA DE CARGA DE SEDIMENTOS
+# Uma linha por data
+# Uma coluna por estação: Codigo_cargatn_dia
+# ============================================================
+
+tabela_carga_sedimentos <- sedimentos_longos %>%
+  select(
+    Data,
+    Codigo,
+    carga_sed_t_dia
+  ) %>%
+  pivot_wider(
+    names_from = Codigo,
+    values_from = carga_sed_t_dia,
+    names_glue = "{Codigo}_cargatn_dia"
+  ) %>%
+  arrange(Data)
+
+head(tabela_carga_sedimentos)
+
+# ============================================================
+# SALVAR TABELA DE CARGA DE SEDIMENTOS
+# ============================================================
+
+arquivo_carga_sedimentos <- file.path(
+  dir_base,
+  "tabela_carga_sedimentos_tn_dia.csv"
+)
+
+write_csv2(
+  tabela_carga_sedimentos,
+  arquivo_carga_sedimentos
+)
+
+cat("Tabela salva em:\n", arquivo_carga_sedimentos, "\n")
+
+```
+
+
+## Passo 6 Tabela 2 — Carga de sedimentos
+
+```{r}
+
+```
+
+
+##Parte 7 — CALCULAR CARGA DE SEDIMENTOS
+
+```{r}
+
+
+```
+
+
+
+
+E para salvar:
+
+## Passo 8 — Salvar tabela de carga de sedimentos
+
+```{r}
+
+
+```

@@ -7,12 +7,14 @@ output: html_document
 
 ```{r}
 # ============================================================
-# Extrair Codigo, Nome, Latitude, Longitude e ArDrngm
+# CONFIGURAÇÕES GERAIS
 # ============================================================
 
 library(sf)
 library(dplyr)
+library(tidyr)
 library(readr)
+library(stringr)
 
 dir_projeto <- "C:/trab/SWY_Amazonia"
 
@@ -23,24 +25,43 @@ arquivo_estacoes <- file.path(
   "estacoes_atualizadas_apos_2018_dentro_bacias.shp"
 )
 
-dir_saida <- file.path(
+arquivo_estacoes_area <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "estacoes_selecionadas",
+  "estacoes_codigo_nome_lat_lon_area.csv"
+)
+
+arquivo_volume_hidrologico <- "C:/trab/estacoes/volume_hidrologico.csv"
+
+dir_saida_estacoes <- file.path(
   dir_projeto,
   "02_dados_processados",
   "estacoes_selecionadas"
 )
 
-# Ler shapefile das estações
-estacoes <- st_read(arquivo_estacoes)
+dir_saida_rendimento <- file.path(
+  dir_projeto,
+  "02_dados_processados",
+  "rendimento_hidrologico"
+)
 
-# Conferir nomes das colunas
-names(estacoes)
+if (!dir.exists(dir_saida_rendimento)) {
+  dir.create(dir_saida_rendimento, recursive = TRUE)
+}
 ```
-
-## Selecionar colunas desejadas 
+##Parte 1 — Ler shapefile das estações e selecionar colunas desejadas e Extrair Código, Nome, Latitude, Longitude e Área
 
 ```{r }
 # ============================================================
-# Selecionar colunas desejadas
+# PARTE 1 — LER SHAPEFILE DAS ESTAÇÕES
+# ============================================================
+
+estacoes <- st_read(arquivo_estacoes)
+
+names(estacoes)
+# ============================================================
+# PARTE 2 — SELECIONAR COLUNAS DE INTERESSE
 # ============================================================
 
 colunas_desejadas <- c(
@@ -67,32 +88,65 @@ estacoes_resumo <- estacoes %>%
   select(
     all_of(colunas_desejadas)
   ) %>%
+  rename(
+    Latitude = Latitud,
+    Longitude = Longitd
+  ) %>%
+  mutate(
+    Codigo = as.character(Codigo),
+    ArDrngm = as.numeric(ArDrngm)
+  ) %>%
   arrange(
     Codigo
   )
 
 head(estacoes_resumo)
+
 ```
 
-## Salvar tabela final
 
+##Parte 3 — Salvar tabela de estações com área
 
-```{r pressure, echo=FALSE}
+```{r }
 # ============================================================
-# Salvar tabela final
+# PARTE 3 — SALVAR TABELA DE ESTAÇÕES COM ÁREA
 # ============================================================
-
-arquivo_estacoes_resumo <- file.path(
-  dir_saida,
-  "estacoes_codigo_nome_lat_lon_area.csv"
-)
 
 write_csv2(
   estacoes_resumo,
-  arquivo_estacoes_resumo
+  arquivo_estacoes_area
 )
 
-cat("Arquivo salvo em:\n", arquivo_estacoes_resumo, "\n")
+cat("Arquivo salvo em:\n", arquivo_estacoes_area, "\n")
+```
+
+## Parte 4 — Ler tabela de áreas e volume hidrológico
+
+
+```{r}
+# ============================================================
+# PARTE 4 — LER TABELAS DE ÁREA E VOLUME HIDROLÓGICO
+# ============================================================
+
+estacoes_area <- read_csv2(
+  arquivo_estacoes_area,
+  show_col_types = FALSE
+) %>%
+  mutate(
+    Codigo = as.character(Codigo),
+    ArDrngm = as.numeric(ArDrngm)
+  )
+
+volume_hidrologico <- read_csv2(
+  arquivo_volume_hidrologico,
+  show_col_types = FALSE
+)
+
+names(estacoes_area)
+names(volume_hidrologico)
+
+head(estacoes_area)
+head(volume_hidrologico)
 ```
 Tabela de áreas: estacoes_codigo_nome_lat_lon_area.csv
 Tabela de volume: volume_hidrologico.csv
@@ -104,89 +158,39 @@ rendimento_mm_ano = volume_m3 / area_km2 / 1000
 
 assumindo que ArDrngm está em km².
 
-
-
-```{r}
-# ============================================================
-# CALCULAR RENDIMENTO HIDROLÓGICO EM mm/ano
-# USANDO VOLUME HIDROLÓGICO E ÁREA DE DRENAGEM
-# ============================================================
-
-library(sf)
-library(dplyr)
-library(tidyr)
-library(readr)
-library(stringr)
-
-# ------------------------------------------------------------
-# Caminhos
-# ------------------------------------------------------------
-
-dir_projeto <- "C:/trab/SWY_Amazonia"
-
-arquivo_estacoes_area <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "estacoes_selecionadas",
-  "estacoes_codigo_nome_lat_lon_area.csv"
-)
-
-arquivo_volume_hidrologico <- "C:/trab/estacoes/volume_hidrologico.csv"
-
-arquivo_shp_estacoes <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "estacoes_selecionadas",
-  "estacoes_atualizadas_apos_2018_dentro_bacias.shp"
-)
-
-dir_saida <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "rendimento_hidrologico"
-)
-
-if (!dir.exists(dir_saida)) {
-  dir.create(dir_saida, recursive = TRUE)
-}
-```
+##Parte 5 — Transformar volume hidrológico para formato longo
 
 ```{r}
 # ============================================================
-# Ler tabela de estações com área
+# PARTE 5 — TRANSFORMAR VOLUME PARA FORMATO LONGO
 # ============================================================
 
-estacoes_area <- read_csv2(
-  arquivo_estacoes_area,
-  show_col_types = FALSE
-)
-
-names(estacoes_area)
-
-# Garantir que Codigo seja texto
-estacoes_area <- estacoes_area %>%
+volume_longo <- volume_hidrologico %>%
+  pivot_longer(
+    cols = -ano_hidrologico,
+    names_to = "Codigo",
+    values_to = "volume_m3"
+  ) %>%
   mutate(
     Codigo = as.character(Codigo),
-    ArDrngm = as.numeric(ArDrngm)
+    ano_hidrologico = as.integer(ano_hidrologico),
+    volume_m3 = as.numeric(volume_m3)
   )
 
-# ============================================================
-# Ler tabela de volume hidrológico
-# ============================================================
-
-volume_hidrologico <- read_csv2(
-  arquivo_volume_hidrologico,
-  show_col_types = FALSE
-)
-
-names(volume_hidrologico)
-head(volume_hidrologico)
-
+head(volume_longo)
 ```
+
+##Parte 6 — Calcular rendimento hidrológico em mm/ano
+
+Fórmula usada:
+
+rendimento_mm_ano = volume_m3 / ArDrngm / 1000
+
+Assumindo que ArDrngm está em km².
 
 ```{r}
 # ============================================================
-# Juntar volume com área de drenagem e calcular rendimento
+# PARTE 6 — CALCULAR RENDIMENTO HIDROLÓGICO EM mm/ano
 # ============================================================
 
 rendimento_longo <- volume_longo %>%
@@ -210,17 +214,12 @@ rendimento_longo <- volume_longo %>%
   )
 
 head(rendimento_longo)
-
-
-
-
-
 ```
-
+##Parte 7 — Conferir estações sem área
 
 ```{r}
 # ============================================================
-# Conferir problemas
+# PARTE 7 — CONFERIR ESTAÇÕES SEM ÁREA DE DRENAGEM
 # ============================================================
 
 estacoes_sem_area <- rendimento_longo %>%
@@ -236,11 +235,11 @@ cat("Estações sem área de drenagem:", nrow(estacoes_sem_area), "\n")
 estacoes_sem_area
 
 ```
-
+##Parte 8 — Criar tabela final em formato largo
 
 ```{r}
 # ============================================================
-# Criar tabela final de rendimento em formato largo
+# PARTE 8 — CRIAR TABELA FINAL EM FORMATO LARGO
 # ============================================================
 
 rendimento_largo <- rendimento_longo %>%
@@ -267,14 +266,15 @@ rendimento_largo <- rendimento_longo %>%
 head(rendimento_largo)
 
 ```
+##Parte 9 — Salvar CSV final
 
 ```{r}
 # ============================================================
-# Salvar tabela CSV com rendimento mm/ano
+# PARTE 9 — SALVAR CSV COM RENDIMENTO mm/ano
 # ============================================================
 
 arquivo_rendimento_csv <- file.path(
-  dir_saida,
+  dir_saida_rendimento,
   "rendimento_hidrologico_mm_ano.csv"
 )
 
@@ -284,21 +284,17 @@ write_csv2(
 )
 
 cat("CSV salvo em:\n", arquivo_rendimento_csv, "\n")
+
 ```
-
-
+##Parte 10 — Criar shapefile final
 ```{r}
-
-
 # ============================================================
-# Criar shapefile final com rendimento mm/ano
+# PARTE 10 — CRIAR SHAPEFILE FINAL COM RENDIMENTO mm/ano
 # ============================================================
 
 estacoes_shp <- st_read(
-  arquivo_shp_estacoes
-)
-
-estacoes_shp <- estacoes_shp %>%
+  arquivo_estacoes
+) %>%
   mutate(
     Codigo = as.character(Codigo)
   )
@@ -314,7 +310,7 @@ rendimento_shp <- estacoes_shp %>%
   )
 
 arquivo_rendimento_shp <- file.path(
-  dir_saida,
+  dir_saida_rendimento,
   "rendimento_hidrologico_mm_ano.shp"
 )
 
