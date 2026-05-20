@@ -1,0 +1,1186 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Extrair valores do raster nos pontos de rendimento hídrico},
+  pdfauthor={Eileen Acosta},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Extrair valores do raster nos pontos de rendimento hídrico}
+\author{Eileen Acosta}
+\date{2026-05-19}
+
+\begin{document}
+\maketitle
+
+Ler o raster Extrair QF\_v2 do raster para os pontos Ler a tabela
+rendimento\_hidrologico\_mm\_ano.csv Juntar essa tabela com os pontos
+usando Codigo Calcular a média das colunas mm\_\ldots{} Fazer o gráfico
+1:1
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 2 — LER RASTER E PONTOS}
+\CommentTok{\# ============================================================}
+
+\NormalTok{raster\_qf }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(arquivo\_raster)}
+
+\NormalTok{pontos }\OtherTok{\textless{}{-}} \FunctionTok{st\_read}\NormalTok{(arquivo\_pontos)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Reading layer `estacoes_check' from data source 
+##   `C:\trab\estacoes\estacoes_check.shp' using driver `ESRI Shapefile'
+## Simple feature collection with 107 features and 4 fields
+## Geometry type: POINT
+## Dimension:     XY
+## Bounding box:  xmin: -72.74122 ymin: -18.7136 xmax: -42.6956 ymax: 3.4381
+## Geodetic CRS:  WGS 84
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{CRS do raster:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## CRS do raster:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(}\FunctionTok{crs}\NormalTok{(raster\_qf))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "PROJCRS[\"SIRGAS 2000 / Brazil Albers\",\n    BASEGEOGCRS[\"SIRGAS 2000\",\n        DATUM[\"Sistema de Referencia Geocentrico para las AmericaS 2000\",\n            ELLIPSOID[\"GRS 1980\",6378137,298.257222101,\n                LENGTHUNIT[\"metre\",1]]],\n        PRIMEM[\"Greenwich\",0,\n            ANGLEUNIT[\"degree\",0.0174532925199433]],\n        ID[\"EPSG\",4674]],\n    CONVERSION[\"Brazil Albers\",\n        METHOD[\"Albers Equal Area\",\n            ID[\"EPSG\",9822]],\n        PARAMETER[\"Latitude of false origin\",-12,\n            ANGLEUNIT[\"degree\",0.0174532925199433],\n            ID[\"EPSG\",8821]],\n        PARAMETER[\"Longitude of false origin\",-54,\n            ANGLEUNIT[\"degree\",0.0174532925199433],\n            ID[\"EPSG\",8822]],\n        PARAMETER[\"Latitude of 1st standard parallel\",-2,\n            ANGLEUNIT[\"degree\",0.0174532925199433],\n            ID[\"EPSG\",8823]],\n        PARAMETER[\"Latitude of 2nd standard parallel\",-22,\n            ANGLEUNIT[\"degree\",0.0174532925199433],\n            ID[\"EPSG\",8824]],\n        PARAMETER[\"Easting at false origin\",5000000,\n            LENGTHUNIT[\"metre\",1],\n            ID[\"EPSG\",8826]],\n        PARAMETER[\"Northing at false origin\",10000000,\n            LENGTHUNIT[\"metre\",1],\n            ID[\"EPSG\",8827]]],\n    CS[Cartesian,2],\n        AXIS[\"(E)\",east,\n            ORDER[1],\n            LENGTHUNIT[\"metre\",1]],\n        AXIS[\"(N)\",north,\n            ORDER[2],\n            LENGTHUNIT[\"metre\",1]],\n    USAGE[\n        SCOPE[\"Statistical analysis.\"],\n        AREA[\"Brazil - onshore.\"],\n        BBOX[-33.78,-74.01,5.28,-34.74]],\n    ID[\"EPSG\",10857]]"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{CRS dos pontos:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## CRS dos pontos:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(}\FunctionTok{st\_crs}\NormalTok{(pontos))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Coordinate Reference System:
+##   User input: WGS 84 
+##   wkt:
+## GEOGCRS["WGS 84",
+##     DATUM["World Geodetic System 1984",
+##         ELLIPSOID["WGS 84",6378137,298.257223563,
+##             LENGTHUNIT["metre",1]]],
+##     PRIMEM["Greenwich",0,
+##         ANGLEUNIT["degree",0.0174532925199433]],
+##     CS[ellipsoidal,2],
+##         AXIS["latitude",north,
+##             ORDER[1],
+##             ANGLEUNIT["degree",0.0174532925199433]],
+##         AXIS["longitude",east,
+##             ORDER[2],
+##             ANGLEUNIT["degree",0.0174532925199433]],
+##     ID["EPSG",4326]]
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{Número de pontos:"}\NormalTok{, }\FunctionTok{nrow}\NormalTok{(pontos), }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Número de pontos: 107
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{names}\NormalTok{(pontos)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "Codigo"   "Nome"     "Latitud"  "Longitd"  "geometry"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 3 — AJUSTAR CRS DOS PONTOS PARA O CRS DO RASTER}
+\CommentTok{\# ============================================================}
+
+\CommentTok{\# O raster e os pontos precisam estar no mesmo sistema de coordenadas.}
+\CommentTok{\# Aqui transformamos os pontos para o CRS do raster.}
+
+\NormalTok{pontos\_raster\_crs }\OtherTok{\textless{}{-}} \FunctionTok{st\_transform}\NormalTok{(}
+\NormalTok{  pontos,}
+  \FunctionTok{crs}\NormalTok{(raster\_qf)}
+\NormalTok{)}
+
+\FunctionTok{cat}\NormalTok{(}\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{CRS dos pontos após transformação:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## CRS dos pontos após transformação:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(}\FunctionTok{st\_crs}\NormalTok{(pontos\_raster\_crs))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Coordinate Reference System:
+##   User input: PROJCRS["SIRGAS 2000 / Brazil Albers",
+##     BASEGEOGCRS["SIRGAS 2000",
+##         DATUM["Sistema de Referencia Geocentrico para las AmericaS 2000",
+##             ELLIPSOID["GRS 1980",6378137,298.257222101,
+##                 LENGTHUNIT["metre",1]]],
+##         PRIMEM["Greenwich",0,
+##             ANGLEUNIT["degree",0.0174532925199433]],
+##         ID["EPSG",4674]],
+##     CONVERSION["Brazil Albers",
+##         METHOD["Albers Equal Area",
+##             ID["EPSG",9822]],
+##         PARAMETER["Latitude of false origin",-12,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8821]],
+##         PARAMETER["Longitude of false origin",-54,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8822]],
+##         PARAMETER["Latitude of 1st standard parallel",-2,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8823]],
+##         PARAMETER["Latitude of 2nd standard parallel",-22,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8824]],
+##         PARAMETER["Easting at false origin",5000000,
+##             LENGTHUNIT["metre",1],
+##             ID["EPSG",8826]],
+##         PARAMETER["Northing at false origin",10000000,
+##             LENGTHUNIT["metre",1],
+##             ID["EPSG",8827]]],
+##     CS[Cartesian,2],
+##         AXIS["(E)",east,
+##             ORDER[1],
+##             LENGTHUNIT["metre",1]],
+##         AXIS["(N)",north,
+##             ORDER[2],
+##             LENGTHUNIT["metre",1]],
+##     USAGE[
+##         SCOPE["Statistical analysis."],
+##         AREA["Brazil - onshore."],
+##         BBOX[-33.78,-74.01,5.28,-34.74]],
+##     ID["EPSG",10857]] 
+##   wkt:
+## PROJCRS["SIRGAS 2000 / Brazil Albers",
+##     BASEGEOGCRS["SIRGAS 2000",
+##         DATUM["Sistema de Referencia Geocentrico para las AmericaS 2000",
+##             ELLIPSOID["GRS 1980",6378137,298.257222101,
+##                 LENGTHUNIT["metre",1]]],
+##         PRIMEM["Greenwich",0,
+##             ANGLEUNIT["degree",0.0174532925199433]],
+##         ID["EPSG",4674]],
+##     CONVERSION["Brazil Albers",
+##         METHOD["Albers Equal Area",
+##             ID["EPSG",9822]],
+##         PARAMETER["Latitude of false origin",-12,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8821]],
+##         PARAMETER["Longitude of false origin",-54,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8822]],
+##         PARAMETER["Latitude of 1st standard parallel",-2,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8823]],
+##         PARAMETER["Latitude of 2nd standard parallel",-22,
+##             ANGLEUNIT["degree",0.0174532925199433],
+##             ID["EPSG",8824]],
+##         PARAMETER["Easting at false origin",5000000,
+##             LENGTHUNIT["metre",1],
+##             ID["EPSG",8826]],
+##         PARAMETER["Northing at false origin",10000000,
+##             LENGTHUNIT["metre",1],
+##             ID["EPSG",8827]]],
+##     CS[Cartesian,2],
+##         AXIS["(E)",east,
+##             ORDER[1],
+##             LENGTHUNIT["metre",1]],
+##         AXIS["(N)",north,
+##             ORDER[2],
+##             LENGTHUNIT["metre",1]],
+##     USAGE[
+##         SCOPE["Statistical analysis."],
+##         AREA["Brazil - onshore."],
+##         BBOX[-33.78,-74.01,5.28,-34.74]],
+##     ID["EPSG",10857]]
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 4 — EXTRAIR VALORES DO RASTER NOS PONTOS}
+\CommentTok{\# ============================================================}
+
+\CommentTok{\# Converter sf para SpatVector, formato usado pelo pacote terra}
+\NormalTok{pontos\_vect }\OtherTok{\textless{}{-}} \FunctionTok{vect}\NormalTok{(pontos\_raster\_crs)}
+
+\CommentTok{\# Extrair valores do raster}
+\NormalTok{valores\_extraidos }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(}
+\NormalTok{  raster\_qf,}
+\NormalTok{  pontos\_vect}
+\NormalTok{)}
+
+\FunctionTok{head}\NormalTok{(valores\_extraidos)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   ID    QF_v2
+## 1  1 1461.153
+## 2  2 2131.965
+## 3  3 2834.586
+## 4  4 2789.684
+## 5  5 1095.260
+## 6  6 2078.195
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{names}\NormalTok{(valores\_extraidos)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "ID"    "QF_v2"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 5 — JUNTAR VALORES EXTRAÍDOS COM OS ATRIBUTOS DOS PONTOS}
+\CommentTok{\# ============================================================}
+
+\NormalTok{nome\_coluna\_raster }\OtherTok{\textless{}{-}} \FunctionTok{names}\NormalTok{(valores\_extraidos)[}\DecValTok{2}\NormalTok{]}
+
+\NormalTok{valores\_extraidos }\OtherTok{\textless{}{-}}\NormalTok{ valores\_extraidos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{rename}\NormalTok{(}
+    \AttributeTok{QF\_v2 =} \FunctionTok{all\_of}\NormalTok{(nome\_coluna\_raster)}
+\NormalTok{  )}
+
+\NormalTok{pontos\_com\_id }\OtherTok{\textless{}{-}}\NormalTok{ pontos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{ID =} \FunctionTok{row\_number}\NormalTok{(),}
+    \AttributeTok{Codigo =} \FunctionTok{as.character}\NormalTok{(Codigo)}
+\NormalTok{  )}
+
+\NormalTok{tabela\_final }\OtherTok{\textless{}{-}}\NormalTok{ pontos\_com\_id }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{st\_drop\_geometry}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(}
+\NormalTok{    valores\_extraidos,}
+    \AttributeTok{by =} \StringTok{"ID"}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(}
+    \SpecialCharTok{{-}}\NormalTok{ID}
+\NormalTok{  )}
+
+\FunctionTok{head}\NormalTok{(tabela\_final)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##     Codigo                         Nome Latitud  Longitd    QF_v2
+## 1 11200000                     TERESINA -4.3578 -69.7336 1461.153
+## 2 11400000      SÃƒO PAULO DE OLIVENÃ‡A -3.4569 -68.9119 2131.965
+## 3 11500000 SANTO ANTÃ”NIO DO IÃ‡Ã\u0081 -3.1017 -67.9356 2834.586
+## 4 12240000                 PORTO SEGURO -3.3372 -67.4917 2789.684
+## 5 12390000                 PORTO WALTER -8.2672 -72.7411 1095.260
+## 6 12500000              CRUZEIRO DO SUL -7.6333 -72.6603 2078.195
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\# ============================================================}
+\CommentTok{\# PARTE 6 — LER E JUNTAR TABELA DE RENDIMENTO HIDROLÓGICO}
+\CommentTok{\# ============================================================}
+
+\NormalTok{rendimento\_hidrologico }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv2}\NormalTok{(}
+\NormalTok{  tabela\_volume,}
+  \AttributeTok{show\_col\_types =} \ConstantTok{FALSE}
+\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{Codigo =} \FunctionTok{as.character}\NormalTok{(Codigo)}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## i Using "','" as decimal and "'.'" as grouping mark. Use `read_delim()` for more control.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{names}\NormalTok{(rendimento\_hidrologico)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##  [1] "Codigo"    "Nome"      "Latitude"  "Longitude" "ArDrngm"   "mm_2014"  
+##  [7] "mm_2015"   "mm_2016"   "mm_2017"   "mm_2018"   "mm_2019"   "mm_2020"  
+## [13] "mm_2021"   "mm_2022"   "mm_2023"   "mm_2024"   "mm_2025"   "mm_2026"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{tabela\_final }\OtherTok{\textless{}{-}}\NormalTok{ tabela\_final }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(}
+\NormalTok{    rendimento\_hidrologico,}
+    \AttributeTok{by =} \StringTok{"Codigo"}
+\NormalTok{  )}
+
+\FunctionTok{head}\NormalTok{(tabela\_final)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##     Codigo                       Nome.x Latitud  Longitd    QF_v2
+## 1 11200000                     TERESINA -4.3578 -69.7336 1461.153
+## 2 11400000      SÃƒO PAULO DE OLIVENÃ‡A -3.4569 -68.9119 2131.965
+## 3 11500000 SANTO ANTÃ”NIO DO IÃ‡Ã\u0081 -3.1017 -67.9356 2834.586
+## 4 12240000                 PORTO SEGURO -3.3372 -67.4917 2789.684
+## 5 12390000                 PORTO WALTER -8.2672 -72.7411 1095.260
+## 6 12500000              CRUZEIRO DO SUL -7.6333 -72.6603 2078.195
+##                  Nome.y Latitude Longitude ArDrngm  mm_2014   mm_2015   mm_2016
+## 1              TERESINA  -4.3578  -69.7336  985000       NA        NA        NA
+## 2 SÃO PAULO DE OLIVENÇA  -3.4569  -68.9119 1010000 1252.586 1757.1739 1380.7446
+## 3  SANTO ANTÔNIO DO IÇÁ  -3.1017  -67.9356 1130000 1420.867 1995.4295 1569.8717
+## 4          PORTO SEGURO  -3.3372  -67.4917   64400 1105.876 1494.5727 1059.5049
+## 5          PORTO WALTER  -8.2672  -72.7411   22200    0.000  936.1247  768.6346
+## 6       CRUZEIRO DO SUL  -7.6333  -72.6603   37800    0.000  818.4283  630.0941
+##     mm_2017   mm_2018   mm_2019   mm_2020   mm_2021   mm_2022   mm_2023
+## 1 1307.2894 1353.9380 1575.1049 1431.8784 1428.3081 1484.5948 1255.6737
+## 2 1449.1055 1402.0214 1634.9759 1485.1973 1480.0249 1417.9907 1231.7547
+## 3 1637.9528 1578.9300 1820.3814 1670.4325 1683.2525 1610.1537 1390.3726
+## 4 1216.8473 1176.3035 1272.6270 1227.4590 1267.7182 1268.3292 1159.0364
+## 5  768.4573  537.4223  850.0891  646.9406  731.6684  699.5538  539.0896
+## 6  883.1662  530.0486 1006.8934  754.9957  847.2165  660.3205  626.9251
+##     mm_2024   mm_2025   mm_2026
+## 1 1108.0657 1486.9272 392.77740
+## 2 1213.4510 1202.2990        NA
+## 3 1313.7637 1359.2972        NA
+## 4 1019.1373 1100.1150 125.37270
+## 5  427.9440  488.2474  91.86335
+## 6  716.3078  587.8716        NA
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{names}\NormalTok{(tabela\_final)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##  [1] "Codigo"    "Nome.x"    "Latitud"   "Longitd"   "QF_v2"     "Nome.y"   
+##  [7] "Latitude"  "Longitude" "ArDrngm"   "mm_2014"   "mm_2015"   "mm_2016"  
+## [13] "mm_2017"   "mm_2018"   "mm_2019"   "mm_2020"   "mm_2021"   "mm_2022"  
+## [19] "mm_2023"   "mm_2024"   "mm_2025"   "mm_2026"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 7 — CALCULAR MÉDIA DOS ANOS DE RENDIMENTO}
+\CommentTok{\#            Selecionando os últimos 5 anos até o ano final}
+\CommentTok{\# ============================================================}
+
+\CommentTok{\# Escolha aqui o ano final e a quantidade de anos}
+\NormalTok{ano\_final }\OtherTok{\textless{}{-}} \DecValTok{2024}
+\NormalTok{n\_anos\_media }\OtherTok{\textless{}{-}} \DecValTok{5}
+
+\NormalTok{anos\_media }\OtherTok{\textless{}{-}}\NormalTok{ (ano\_final }\SpecialCharTok{{-}}\NormalTok{ n\_anos\_media }\SpecialCharTok{+} \DecValTok{1}\NormalTok{)}\SpecialCharTok{:}\NormalTok{ano\_final}
+
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Anos usados na média:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Anos usados na média:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(anos\_media)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 2020 2021 2022 2023 2024
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Criar nomes das colunas esperadas}
+\NormalTok{colunas\_mm }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(}\StringTok{"mm\_"}\NormalTok{, anos\_media)}
+
+\CommentTok{\# Conferir se essas colunas existem na tabela}
+\NormalTok{colunas\_mm\_existentes }\OtherTok{\textless{}{-}}\NormalTok{ colunas\_mm[}
+\NormalTok{  colunas\_mm }\SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(tabela\_final)}
+\NormalTok{]}
+
+\NormalTok{colunas\_mm\_faltando }\OtherTok{\textless{}{-}}\NormalTok{ colunas\_mm[}
+  \SpecialCharTok{!}\NormalTok{colunas\_mm }\SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(tabela\_final)}
+\NormalTok{]}
+
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Colunas encontradas:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Colunas encontradas:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(colunas\_mm\_existentes)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "mm_2020" "mm_2021" "mm_2022" "mm_2023" "mm_2024"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Colunas faltando:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Colunas faltando:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(colunas\_mm\_faltando)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## character(0)
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ControlFlowTok{if}\NormalTok{ (}\FunctionTok{length}\NormalTok{(colunas\_mm\_existentes) }\SpecialCharTok{==} \DecValTok{0}\NormalTok{) \{}
+  \FunctionTok{stop}\NormalTok{(}\StringTok{"Nenhuma coluna dos anos selecionados foi encontrada na tabela\_final."}\NormalTok{)}
+\NormalTok{\}}
+
+\CommentTok{\# Calcular média, mínimo, máximo e desvio padrão}
+\CommentTok{\# NA é ignorado automaticamente}
+\NormalTok{tabela\_final }\OtherTok{\textless{}{-}}\NormalTok{ tabela\_final }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{rowwise}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{n\_anos\_validos =} \FunctionTok{sum}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(}\FunctionTok{c\_across}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(colunas\_mm\_existentes)))),}
+    
+    \AttributeTok{media\_mm =} \FunctionTok{ifelse}\NormalTok{(}
+\NormalTok{      n\_anos\_validos }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{,}
+      \FunctionTok{mean}\NormalTok{(}\FunctionTok{c\_across}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(colunas\_mm\_existentes)), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+      \ConstantTok{NA\_real\_}
+\NormalTok{    ),}
+    
+    \AttributeTok{min\_mm =} \FunctionTok{ifelse}\NormalTok{(}
+\NormalTok{      n\_anos\_validos }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{,}
+      \FunctionTok{min}\NormalTok{(}\FunctionTok{c\_across}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(colunas\_mm\_existentes)), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+      \ConstantTok{NA\_real\_}
+\NormalTok{    ),}
+    
+    \AttributeTok{max\_mm =} \FunctionTok{ifelse}\NormalTok{(}
+\NormalTok{      n\_anos\_validos }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{,}
+      \FunctionTok{max}\NormalTok{(}\FunctionTok{c\_across}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(colunas\_mm\_existentes)), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+      \ConstantTok{NA\_real\_}
+\NormalTok{    ),}
+    
+    \AttributeTok{sd\_mm =} \FunctionTok{ifelse}\NormalTok{(}
+\NormalTok{      n\_anos\_validos }\SpecialCharTok{\textgreater{}} \DecValTok{1}\NormalTok{,}
+      \FunctionTok{sd}\NormalTok{(}\FunctionTok{c\_across}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(colunas\_mm\_existentes)), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+      \ConstantTok{NA\_real\_}
+\NormalTok{    )}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ungroup}\NormalTok{()}
+
+\FunctionTok{head}\NormalTok{(}
+\NormalTok{  tabela\_final }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{select}\NormalTok{(}
+\NormalTok{      Codigo,}
+      \FunctionTok{all\_of}\NormalTok{(colunas\_mm\_existentes),}
+\NormalTok{      n\_anos\_validos,}
+\NormalTok{      media\_mm,}
+\NormalTok{      min\_mm,}
+\NormalTok{      max\_mm,}
+\NormalTok{      sd\_mm,}
+\NormalTok{      QF\_v2}
+\NormalTok{    )}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 6 x 12
+##   Codigo  mm_2020 mm_2021 mm_2022 mm_2023 mm_2024 n_anos_validos media_mm min_mm
+##   <chr>     <dbl>   <dbl>   <dbl>   <dbl>   <dbl>          <int>    <dbl>  <dbl>
+## 1 112000~   1432.   1428.   1485.   1256.   1108.              5    1342.  1108.
+## 2 114000~   1485.   1480.   1418.   1232.   1213.              5    1366.  1213.
+## 3 115000~   1670.   1683.   1610.   1390.   1314.              5    1534.  1314.
+## 4 122400~   1227.   1268.   1268.   1159.   1019.              5    1188.  1019.
+## 5 123900~    647.    732.    700.    539.    428.              5     609.   428.
+## 6 125000~    755.    847.    660.    627.    716.              5     721.   627.
+## # i 3 more variables: max_mm <dbl>, sd_mm <dbl>, QF_v2 <dbl>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 8 — GRÁFICO 1:1 QUADRADO E COM MESMA ESCALA}
+\CommentTok{\# ============================================================}
+
+\NormalTok{dados\_grafico }\OtherTok{\textless{}{-}}\NormalTok{ tabela\_final }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(media\_mm),}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(QF\_v2),}
+    \FunctionTok{is.finite}\NormalTok{(media\_mm),}
+    \FunctionTok{is.finite}\NormalTok{(QF\_v2)}
+\NormalTok{  )}
+
+\NormalTok{limites }\OtherTok{\textless{}{-}} \FunctionTok{range}\NormalTok{(}
+  \FunctionTok{c}\NormalTok{(dados\_grafico}\SpecialCharTok{$}\NormalTok{media\_mm, dados\_grafico}\SpecialCharTok{$}\NormalTok{QF\_v2),}
+  \AttributeTok{na.rm =} \ConstantTok{TRUE}
+\NormalTok{)}
+
+\NormalTok{margem }\OtherTok{\textless{}{-}} \FunctionTok{diff}\NormalTok{(limites) }\SpecialCharTok{*} \FloatTok{0.05}
+
+\NormalTok{limites }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}
+\NormalTok{  limites[}\DecValTok{1}\NormalTok{] }\SpecialCharTok{{-}}\NormalTok{ margem,}
+\NormalTok{  limites[}\DecValTok{2}\NormalTok{] }\SpecialCharTok{+}\NormalTok{ margem}
+\NormalTok{)}
+
+\NormalTok{grafico\_1\_1 }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(}
+\NormalTok{  dados\_grafico,}
+  \FunctionTok{aes}\NormalTok{(}
+    \AttributeTok{x =}\NormalTok{ media\_mm,}
+    \AttributeTok{y =}\NormalTok{ QF\_v2}
+\NormalTok{  )}
+\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{2}\NormalTok{, }\AttributeTok{alpha =} \FloatTok{0.75}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_abline}\NormalTok{(}
+    \AttributeTok{intercept =} \DecValTok{0}\NormalTok{,}
+    \AttributeTok{slope =} \DecValTok{1}\NormalTok{,}
+    \AttributeTok{linetype =} \StringTok{"dashed"}\NormalTok{,}
+    \AttributeTok{linewidth =} \FloatTok{0.8}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{scale\_x\_continuous}\NormalTok{(}
+    \AttributeTok{limits =}\NormalTok{ limites}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{scale\_y\_continuous}\NormalTok{(}
+    \AttributeTok{limits =}\NormalTok{ limites}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{coord\_equal}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Comparação 1:1 do rendimento hídrico"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Média dos dados observados vs valor extraído do raster Quick flow"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Rendimento hídrico observado médio (mm/ano)"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Rendimento hídrico do raster Quick flow (mm/ano)"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{()}
+
+\NormalTok{grafico\_1\_1}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{4_comparative_vazao_invest_files/4_comparative_vazao_invest_files/figure-latex/unnamed-chunk-4-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 9 — SALVAR CSV E GRÁFICO}
+\CommentTok{\# ============================================================}
+
+\FunctionTok{write\_csv2}\NormalTok{(}
+\NormalTok{  tabela\_final,}
+\NormalTok{  arquivo\_saida\_csv}
+\NormalTok{)}
+
+\NormalTok{arquivo\_grafico }\OtherTok{\textless{}{-}} \FunctionTok{file.path}\NormalTok{(}
+\NormalTok{  dir\_saida,}
+  \StringTok{"grafico\_1\_1\_rendimento\_hidrico.png"}
+\NormalTok{)}
+
+\FunctionTok{ggsave}\NormalTok{(}
+  \AttributeTok{filename =}\NormalTok{ arquivo\_grafico,}
+  \AttributeTok{plot =}\NormalTok{ grafico\_1\_1,}
+  \AttributeTok{width =} \DecValTok{7}\NormalTok{,}
+  \AttributeTok{height =} \DecValTok{7}\NormalTok{,}
+  \AttributeTok{dpi =} \DecValTok{300}
+\NormalTok{)}
+
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Tabela salva em:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, arquivo\_saida\_csv, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Tabela salva em:
+##  C:/trab/SWY_Amazonia/04_resultados/rendimento_hidrico_com_QF_v2.csv
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Gráfico salvo em:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, arquivo\_grafico, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Gráfico salvo em:
+##  C:/trab/SWY_Amazonia/04_resultados/grafico_1_1_rendimento_hidrico.png
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# PARTE 10 — SALVAR SHAPEFILE FINAL COMPLETO}
+\CommentTok{\# ============================================================}
+
+\NormalTok{pontos\_shp\_final }\OtherTok{\textless{}{-}}\NormalTok{ pontos\_com\_id }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(}
+\NormalTok{    valores\_extraidos,}
+    \AttributeTok{by =} \StringTok{"ID"}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(}
+    \SpecialCharTok{{-}}\NormalTok{ID}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(}
+\NormalTok{    tabela\_final }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{st\_drop\_geometry}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{select}\NormalTok{(}
+\NormalTok{        Codigo,}
+        \FunctionTok{all\_of}\NormalTok{(colunas\_mm),}
+\NormalTok{        n\_anos\_validos,}
+\NormalTok{        media\_mm,}
+\NormalTok{        min\_mm,}
+\NormalTok{        max\_mm,}
+\NormalTok{        sd\_mm}
+\NormalTok{      ),}
+    \AttributeTok{by =} \StringTok{"Codigo"}
+\NormalTok{  )}
+
+\FunctionTok{st\_write}\NormalTok{(}
+\NormalTok{  pontos\_shp\_final,}
+\NormalTok{  arquivo\_saida\_shp,}
+  \AttributeTok{delete\_layer =} \ConstantTok{TRUE}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in abbreviate_shapefile_names(obj): Field names abbreviated for ESRI
+## Shapefile driver
+\end{verbatim}
+
+\begin{verbatim}
+## Deleting layer `rendimento_hidrico_com_QF_v2' using driver `ESRI Shapefile'
+## Writing layer `rendimento_hidrico_com_QF_v2' to data source 
+##   `C:/trab/SWY_Amazonia/04_resultados/rendimento_hidrico_com_QF_v2.shp' using driver `ESRI Shapefile'
+## Writing 107 features with 15 fields and geometry type Point.
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in CPL_write_ogr(obj, dsn, layer, driver,
+## as.character(dataset_options), : GDAL Message 1: One or several characters
+## couldn't be converted correctly from UTF-8 to ISO-8859-1.  This warning will
+## not be emitted anymore.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Shapefile salvo em:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, arquivo\_saida\_shp, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Shapefile salvo em:
+##  C:/trab/SWY_Amazonia/04_resultados/rendimento_hidrico_com_QF_v2.shp
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# TESTE — GRÁFICO 1:1 COM VARIAÇÃO ANUAL}
+\CommentTok{\#          Ponto = média sem zeros}
+\CommentTok{\#          Barra = mínimo{-}máximo sem zeros}
+\CommentTok{\# ============================================================}
+
+\NormalTok{dados\_grafico\_dispersao }\OtherTok{\textless{}{-}}\NormalTok{ tabela\_final }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(media\_mm),}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(QF\_v2),}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(min\_mm),}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(max\_mm),}
+    \FunctionTok{is.finite}\NormalTok{(media\_mm),}
+    \FunctionTok{is.finite}\NormalTok{(QF\_v2),}
+    \FunctionTok{is.finite}\NormalTok{(min\_mm),}
+    \FunctionTok{is.finite}\NormalTok{(max\_mm)}
+\NormalTok{  )}
+
+\NormalTok{limites\_teste }\OtherTok{\textless{}{-}} \FunctionTok{range}\NormalTok{(}
+  \FunctionTok{c}\NormalTok{(}
+\NormalTok{    dados\_grafico\_dispersao}\SpecialCharTok{$}\NormalTok{min\_mm,}
+\NormalTok{    dados\_grafico\_dispersao}\SpecialCharTok{$}\NormalTok{max\_mm,}
+\NormalTok{    dados\_grafico\_dispersao}\SpecialCharTok{$}\NormalTok{QF\_v2}
+\NormalTok{  ),}
+  \AttributeTok{na.rm =} \ConstantTok{TRUE}
+\NormalTok{)}
+
+\NormalTok{margem\_teste }\OtherTok{\textless{}{-}} \FunctionTok{diff}\NormalTok{(limites\_teste) }\SpecialCharTok{*} \FloatTok{0.05}
+
+\NormalTok{limites\_teste }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}
+\NormalTok{  limites\_teste[}\DecValTok{1}\NormalTok{] }\SpecialCharTok{{-}}\NormalTok{ margem\_teste,}
+\NormalTok{  limites\_teste[}\DecValTok{2}\NormalTok{] }\SpecialCharTok{+}\NormalTok{ margem\_teste}
+\NormalTok{)}
+
+\NormalTok{grafico\_1\_1\_dispersao\_teste }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(}
+\NormalTok{  dados\_grafico\_dispersao,}
+  \FunctionTok{aes}\NormalTok{(}
+    \AttributeTok{x =}\NormalTok{ media\_mm,}
+    \AttributeTok{y =}\NormalTok{ QF\_v2}
+\NormalTok{  )}
+\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_segment}\NormalTok{(}
+    \FunctionTok{aes}\NormalTok{(}
+      \AttributeTok{x =}\NormalTok{ min\_mm,}
+      \AttributeTok{xend =}\NormalTok{ max\_mm,}
+      \AttributeTok{y =}\NormalTok{ QF\_v2,}
+      \AttributeTok{yend =}\NormalTok{ QF\_v2}
+\NormalTok{    ),}
+    \AttributeTok{linewidth =} \FloatTok{0.6}\NormalTok{,}
+    \AttributeTok{alpha =} \FloatTok{0.6}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}
+    \AttributeTok{size =} \FloatTok{2.5}\NormalTok{,}
+    \AttributeTok{alpha =} \FloatTok{0.85}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{geom\_abline}\NormalTok{(}
+    \AttributeTok{intercept =} \DecValTok{0}\NormalTok{,}
+    \AttributeTok{slope =} \DecValTok{1}\NormalTok{,}
+    \AttributeTok{linetype =} \StringTok{"dashed"}\NormalTok{,}
+    \AttributeTok{linewidth =} \FloatTok{0.8}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{scale\_x\_continuous}\NormalTok{(}
+    \AttributeTok{limits =}\NormalTok{ limites\_teste}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{scale\_y\_continuous}\NormalTok{(}
+    \AttributeTok{limits =}\NormalTok{ limites\_teste}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{coord\_equal}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Comparação 1:1 com variação anual"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Ponto = média  | Barra = mínimo{-}máximo"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Rendimento hídrico médio observado (mm/ano)"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Rendimento hídrico do raster Quick Flow (mm/ano)"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{()}
+
+\NormalTok{grafico\_1\_1\_dispersao\_teste}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{4_comparative_vazao_invest_files/4_comparative_vazao_invest_files/figure-latex/unnamed-chunk-6-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{arquivo\_grafico\_teste }\OtherTok{\textless{}{-}} \FunctionTok{file.path}\NormalTok{(}
+\NormalTok{  dir\_saida,}
+  \StringTok{"teste\_grafico\_1\_1\_com\_variacao\_anual\_sem\_zeros.png"}
+\NormalTok{)}
+
+\FunctionTok{ggsave}\NormalTok{(}
+  \AttributeTok{filename =}\NormalTok{ arquivo\_grafico\_teste,}
+  \AttributeTok{plot =}\NormalTok{ grafico\_1\_1\_dispersao\_teste,}
+  \AttributeTok{width =} \DecValTok{7}\NormalTok{,}
+  \AttributeTok{height =} \DecValTok{7}\NormalTok{,}
+  \AttributeTok{dpi =} \DecValTok{300}
+\NormalTok{)}
+
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Gráfico salvo em:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, arquivo\_grafico\_teste, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Gráfico salvo em:
+##  C:/trab/SWY_Amazonia/04_resultados/teste_grafico_1_1_com_variacao_anual_sem_zeros.png
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# LER TABELA DE VAZÕES}
+\CommentTok{\# ============================================================}
+
+\FunctionTok{library}\NormalTok{(dplyr)}
+\FunctionTok{library}\NormalTok{(tidyr)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Anexando pacote: 'tidyr'
+\end{verbatim}
+
+\begin{verbatim}
+## O seguinte objeto é mascarado por 'package:terra':
+## 
+##     extract
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(lubridate)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Anexando pacote: 'lubridate'
+\end{verbatim}
+
+\begin{verbatim}
+## Os seguintes objetos são mascarados por 'package:terra':
+## 
+##     intersect, union
+\end{verbatim}
+
+\begin{verbatim}
+## Os seguintes objetos são mascarados por 'package:base':
+## 
+##     date, intersect, setdiff, union
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(readr)}
+\FunctionTok{library}\NormalTok{(ggplot2)}
+\FunctionTok{library}\NormalTok{(stringr)}
+
+\NormalTok{arquivo\_vazoes }\OtherTok{\textless{}{-}} \StringTok{"C:/trab/estacoes/tabela\_vazoes.csv"}
+
+\NormalTok{tabela\_vazoes }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv2}\NormalTok{(}
+\NormalTok{  arquivo\_vazoes,}
+  \AttributeTok{show\_col\_types =} \ConstantTok{FALSE}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## i Using "','" as decimal and "'.'" as grouping mark. Use `read_delim()` for more control.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{tabela\_vazoes }\OtherTok{\textless{}{-}}\NormalTok{ tabela\_vazoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{Data =} \FunctionTok{as.Date}\NormalTok{(Data)}
+\NormalTok{  )}
+\CommentTok{\# ============================================================}
+\CommentTok{\# ORGANIZAR VAZÕES EM FORMATO LONGO}
+\CommentTok{\# Excluir ano 2026}
+\CommentTok{\# ============================================================}
+
+\NormalTok{vazoes\_longas\_grafico }\OtherTok{\textless{}{-}}\NormalTok{ tabela\_vazoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_longer}\NormalTok{(}
+    \AttributeTok{cols =} \SpecialCharTok{{-}}\NormalTok{Data,}
+    \AttributeTok{names\_to =} \StringTok{"Codigo"}\NormalTok{,}
+    \AttributeTok{values\_to =} \StringTok{"Vazao"}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{Ano =} \FunctionTok{year}\NormalTok{(Data),}
+    \AttributeTok{Mes =} \FunctionTok{month}\NormalTok{(Data),}
+    \AttributeTok{Vazao =} \FunctionTok{as.numeric}\NormalTok{(Vazao)}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(}
+\NormalTok{    Ano }\SpecialCharTok{!=} \DecValTok{2026}\NormalTok{,}
+    \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(Vazao)}
+\NormalTok{  )}
+
+\FunctionTok{head}\NormalTok{(vazoes\_longas\_grafico)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 6 x 5
+##   Data       Codigo    Vazao   Ano   Mes
+##   <date>     <chr>     <dbl> <dbl> <dbl>
+## 1 2014-01-01 11400000 45402.  2014     1
+## 2 2014-01-01 11500000 54716.  2014     1
+## 3 2014-01-01 12240000  2778.  2014     1
+## 4 2014-01-01 12650000   430.  2014     1
+## 5 2014-01-01 12840000  4128.  2014     1
+## 6 2014-01-01 13150000 81651.  2014     1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# ============================================================}
+\CommentTok{\# GRÁFICO 1 — VAZÃO MÉDIA ANUAL POR ESTAÇÃO}
+\CommentTok{\# ============================================================}
+
+\NormalTok{vazao\_anual }\OtherTok{\textless{}{-}}\NormalTok{ vazoes\_longas\_grafico }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(}
+\NormalTok{    Codigo,}
+\NormalTok{    Ano}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{vazao\_media\_anual =} \FunctionTok{mean}\NormalTok{(Vazao, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{dias\_com\_dado =} \FunctionTok{n}\NormalTok{(),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  )}
+
+\NormalTok{grafico\_vazao\_anual }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(}
+\NormalTok{  vazao\_anual,}
+  \FunctionTok{aes}\NormalTok{(}
+    \AttributeTok{x =}\NormalTok{ Ano,}
+    \AttributeTok{y =}\NormalTok{ vazao\_media\_anual,}
+    \AttributeTok{group =}\NormalTok{ Codigo}
+\NormalTok{  )}
+\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_line}\NormalTok{(}\AttributeTok{alpha =} \FloatTok{0.5}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \FloatTok{1.5}\NormalTok{, }\AttributeTok{alpha =} \FloatTok{0.7}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Comportamento anual da vazão por estação"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Vazão média anual — ano 2026 excluído"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Ano"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Vazão média anual (m³/s)"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{()}
+
+\NormalTok{grafico\_vazao\_anual}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{4_comparative_vazao_invest_files/4_comparative_vazao_invest_files/figure-latex/unnamed-chunk-7-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggsave}\NormalTok{(}
+  \AttributeTok{filename =} \StringTok{"C:/trab/estacoes/grafico\_vazao\_media\_anual.png"}\NormalTok{,}
+  \AttributeTok{plot =}\NormalTok{ grafico\_vazao\_anual,}
+  \AttributeTok{width =} \DecValTok{10}\NormalTok{,}
+  \AttributeTok{height =} \DecValTok{6}\NormalTok{,}
+  \AttributeTok{dpi =} \DecValTok{300}
+\NormalTok{)}
+\CommentTok{\# ============================================================}
+\CommentTok{\# GRÁFICO 2 — MÉDIA GERAL ANUAL DAS ESTAÇÕES}
+\CommentTok{\# ============================================================}
+
+\NormalTok{vazao\_anual\_geral }\OtherTok{\textless{}{-}}\NormalTok{ vazao\_anual }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(Ano) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{media\_geral =} \FunctionTok{mean}\NormalTok{(vazao\_media\_anual, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{min\_geral =} \FunctionTok{min}\NormalTok{(vazao\_media\_anual, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{max\_geral =} \FunctionTok{max}\NormalTok{(vazao\_media\_anual, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  )}
+
+\NormalTok{grafico\_vazao\_anual\_geral }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(}
+\NormalTok{  vazao\_anual\_geral,}
+  \FunctionTok{aes}\NormalTok{(}
+    \AttributeTok{x =}\NormalTok{ Ano,}
+    \AttributeTok{y =}\NormalTok{ media\_geral}
+\NormalTok{  )}
+\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_ribbon}\NormalTok{(}
+    \FunctionTok{aes}\NormalTok{(}
+      \AttributeTok{ymin =}\NormalTok{ min\_geral,}
+      \AttributeTok{ymax =}\NormalTok{ max\_geral}
+\NormalTok{    ),}
+    \AttributeTok{alpha =} \FloatTok{0.2}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{geom\_line}\NormalTok{(}\AttributeTok{linewidth =} \DecValTok{1}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{2}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Comportamento anual médio da vazão"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Linha = média das estações | Faixa = mínimo{-}máximo entre estações | 2026 excluído"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Ano"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Vazão média anual (m³/s)"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{()}
+
+\NormalTok{grafico\_vazao\_anual\_geral}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{4_comparative_vazao_invest_files/4_comparative_vazao_invest_files/figure-latex/unnamed-chunk-7-2.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggsave}\NormalTok{(}
+  \AttributeTok{filename =} \StringTok{"C:/trab/estacoes/grafico\_vazao\_media\_anual\_geral.png"}\NormalTok{,}
+  \AttributeTok{plot =}\NormalTok{ grafico\_vazao\_anual\_geral,}
+  \AttributeTok{width =} \DecValTok{9}\NormalTok{,}
+  \AttributeTok{height =} \DecValTok{6}\NormalTok{,}
+  \AttributeTok{dpi =} \DecValTok{300}
+\NormalTok{)}
+
+\CommentTok{\# ============================================================}
+\CommentTok{\# GRÁFICO 3 — DISTRIBUIÇÃO ANUAL DAS VAZÕES}
+\CommentTok{\# ============================================================}
+
+\NormalTok{grafico\_boxplot\_anual }\OtherTok{\textless{}{-}} \FunctionTok{ggplot}\NormalTok{(}
+\NormalTok{  vazao\_anual,}
+  \FunctionTok{aes}\NormalTok{(}
+    \AttributeTok{x =} \FunctionTok{factor}\NormalTok{(Ano),}
+    \AttributeTok{y =}\NormalTok{ vazao\_media\_anual}
+\NormalTok{  )}
+\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_boxplot}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Distribuição da vazão média anual entre estações"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Cada boxplot representa as estações em um ano | 2026 excluído"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Ano"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Vazão média anual (m³/s)"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{()}
+
+\NormalTok{grafico\_boxplot\_anual}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{4_comparative_vazao_invest_files/4_comparative_vazao_invest_files/figure-latex/unnamed-chunk-7-3.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggsave}\NormalTok{(}
+  \AttributeTok{filename =} \StringTok{"C:/trab/estacoes/grafico\_boxplot\_vazao\_anual.png"}\NormalTok{,}
+  \AttributeTok{plot =}\NormalTok{ grafico\_boxplot\_anual,}
+  \AttributeTok{width =} \DecValTok{10}\NormalTok{,}
+  \AttributeTok{height =} \DecValTok{6}\NormalTok{,}
+  \AttributeTok{dpi =} \DecValTok{300}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+
+\end{document}
