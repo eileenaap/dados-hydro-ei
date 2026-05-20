@@ -226,13 +226,12 @@ head(tabela_final)
 # ============================================================
 
 rendimento_hidrologico <- read_csv2(
-  tabela_volume,
+  arquivo_rendimento,
   show_col_types = FALSE
 ) %>%
   mutate(
     Codigo = as.character(Codigo)
   )
-
 names(rendimento_hidrologico)
 
 tabela_final <- tabela_final %>%
@@ -382,7 +381,7 @@ grafico_1_1 <- ggplot(
   labs(
     title = "Comparação 1:1 do rendimento hídrico",
     subtitle = "Média dos dados observados vs valor extraído do raster Quick flow",
-    x = "Rendimento hídrico observado médio (mm/ano)",
+    x = "Rendimento hídrico observado médio dos últimos 5 anos (mm/ano)",
     y = "Rendimento hídrico do raster Quick flow (mm/ano)"
   ) +
   theme_bw()
@@ -397,12 +396,6 @@ write_csv2(
   tabela_final,
   arquivo_saida_csv
 )
-
-arquivo_grafico <- file.path(
-  dir_saida,
-  "grafico_1_1_rendimento_hidrico.png"
-)
-
 ggsave(
   filename = arquivo_grafico,
   plot = grafico_1_1,
@@ -430,10 +423,9 @@ pontos_shp_final <- pontos_com_id %>%
   ) %>%
   left_join(
     tabela_final %>%
-      st_drop_geometry() %>%
       select(
         Codigo,
-        all_of(colunas_mm),
+        all_of(colunas_mm_existentes),
         n_anos_validos,
         media_mm,
         min_mm,
@@ -457,9 +449,9 @@ cat("Shapefile salvo em:\n", arquivo_saida_shp, "\n")
 
 ```{r}
 # ============================================================
-# TESTE — GRÁFICO 1:1 COM VARIAÇÃO ANUAL
-#          Ponto = média sem zeros
-#          Barra = mínimo-máximo sem zeros
+# PARTE 11 — GRÁFICO 1:1 COM VARIAÇÃO ANUAL
+#            Ponto = média dos anos selecionados
+#            Barra = mínimo-máximo dos anos selecionados
 # ============================================================
 
 dados_grafico_dispersao <- tabela_final %>%
@@ -474,7 +466,10 @@ dados_grafico_dispersao <- tabela_final %>%
     is.finite(max_mm)
   )
 
-limites_teste <- range(
+cat("Pontos usados no gráfico com variação:", nrow(dados_grafico_dispersao), "\n")
+
+# Definir limites iguais para X e Y
+limites_variacao <- range(
   c(
     dados_grafico_dispersao$min_mm,
     dados_grafico_dispersao$max_mm,
@@ -483,14 +478,18 @@ limites_teste <- range(
   na.rm = TRUE
 )
 
-margem_teste <- diff(limites_teste) * 0.05
+margem_variacao <- diff(limites_variacao) * 0.05
 
-limites_teste <- c(
-  limites_teste[1] - margem_teste,
-  limites_teste[2] + margem_teste
+if (margem_variacao == 0) {
+  margem_variacao <- max(limites_variacao, na.rm = TRUE) * 0.05
+}
+
+limites_variacao <- c(
+  limites_variacao[1] - margem_variacao,
+  limites_variacao[2] + margem_variacao
 )
 
-grafico_1_1_dispersao_teste <- ggplot(
+grafico_1_1_variacao <- ggplot(
   dados_grafico_dispersao,
   aes(
     x = media_mm,
@@ -518,36 +517,31 @@ grafico_1_1_dispersao_teste <- ggplot(
     linewidth = 0.8
   ) +
   scale_x_continuous(
-    limits = limites_teste
+    limits = limites_variacao
   ) +
   scale_y_continuous(
-    limits = limites_teste
+    limits = limites_variacao
   ) +
   coord_equal() +
   labs(
     title = "Comparação 1:1 com variação anual",
-    subtitle = "Ponto = média  | Barra = mínimo-máximo",
+    subtitle = "Ponto = média dos anos selecionados | Barra = mínimo-máximo",
     x = "Rendimento hídrico médio observado (mm/ano)",
     y = "Rendimento hídrico do raster Quick Flow (mm/ano)"
   ) +
   theme_bw()
 
-grafico_1_1_dispersao_teste
-
-arquivo_grafico_teste <- file.path(
-  dir_saida,
-  "teste_grafico_1_1_com_variacao_anual_sem_zeros.png"
-)
+grafico_1_1_variacao
 
 ggsave(
-  filename = arquivo_grafico_teste,
-  plot = grafico_1_1_dispersao_teste,
+  filename = arquivo_grafico_variacao,
+  plot = grafico_1_1_variacao,
   width = 7,
   height = 7,
   dpi = 300
 )
 
-cat("Gráfico salvo em:\n", arquivo_grafico_teste, "\n")
+cat("Gráfico com variação salvo em:\n", arquivo_grafico_variacao, "\n")
 
 ```
 
