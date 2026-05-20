@@ -4,6 +4,13 @@ output: html_document
 date: "2026-05-14"
 ---
 ##Parte 1 — Carregar pacotes e definir caminhos
+Para poder correr este código precisa baixar o invetário de estações da Agencia Nacional de Água 
+cambiar o diretorio do projeto, colocar o local do doretorio para chegar no bsaededados e también do shapefile para relaizar o filtro.
+
+No passo 3 mudar as columnas dependendo dos filtros que você precisa.
+
+
+
 
 ```{r setup, include=FALSE}
 # ============================================================

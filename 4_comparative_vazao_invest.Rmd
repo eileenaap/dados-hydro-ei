@@ -1,0 +1,670 @@
+---
+title: "Extrair valores do raster nos pontos de rendimento hídrico"
+author: "Eileen Acosta"
+date: "2026-05-19"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Ler o raster
+Extrair QF_v2 do raster para os pontos
+Ler a tabela rendimento_hidrologico_mm_ano.csv
+Juntar essa tabela com os pontos usando Codigo
+Calcular a média das colunas mm_...
+Fazer o gráfico 1:1
+
+
+
+```{r setup, include=FALSE}
+# ============================================================
+# CONFIGURAÇÕES GERAIS
+# ============================================================
+
+pacotes <- c(
+  "sf",
+  "terra",
+  "dplyr",
+  "readr",
+  "stringr",
+  "ggplot2"
+)
+pacotes_instalados <- pacotes %in% rownames(installed.packages())
+
+if (any(!pacotes_instalados)) {
+  install.packages(pacotes[!pacotes_instalados])
+}
+
+library(sf)
+library(terra)
+library(dplyr)
+library(readr)
+library(stringr)
+library(ggplot2)
+
+# ------------------------------------------------------------
+# Caminhos de entrada
+# ------------------------------------------------------------
+
+arquivo_raster <- "C:/trab/tx_invest/SWY_AL/output/QF_v2.tif"
+
+arquivo_pontos <- "C:/trab/estacoes/estacoes_check.shp"
+
+tabela_volume <- "C:/trab/SWY_Amazonia/02_dados_processados/rendimento_hidrologico/rendimento_hidrologico_mm_ano.csv"
+
+# ------------------------------------------------------------
+# Pasta de saída
+# ------------------------------------------------------------
+
+dir_saida <- "C:/trab/SWY_Amazonia/04_resultados"
+
+if (!dir.exists(dir_saida)) {
+  dir.create(dir_saida, recursive = TRUE)
+}
+
+arquivo_saida_csv <- file.path(
+  dir_saida,
+  "rendimento_hidrico_com_QF_v2.csv"
+)
+
+arquivo_saida_shp <- file.path(
+  dir_saida,
+  "rendimento_hidrico_com_QF_v2.shp"
+)
+
+# ============================================================
+# PARTE 1 — VERIFICAR ARQUIVOS DE ENTRADA
+# ============================================================
+
+cat("Raster existe? ", file.exists(arquivo_raster), "\n")
+cat("Shapefile existe? ", file.exists(arquivo_pontos), "\n")
+
+if (!file.exists(arquivo_raster)) {
+  stop("Raster não encontrado: ", arquivo_raster)
+}
+
+if (!file.exists(arquivo_pontos)) {
+  stop("Shapefile não encontrado: ", arquivo_pontos)
+}
+
+```
+
+
+
+```{r}
+# ============================================================
+# PARTE 2 — LER RASTER E PONTOS
+# ============================================================
+
+raster_qf <- rast(arquivo_raster)
+
+pontos <- st_read(arquivo_pontos)
+
+cat("\nCRS do raster:\n")
+print(crs(raster_qf))
+
+cat("\nCRS dos pontos:\n")
+print(st_crs(pontos))
+
+cat("\nNúmero de pontos:", nrow(pontos), "\n")
+
+names(pontos)
+
+# ============================================================
+# PARTE 3 — AJUSTAR CRS DOS PONTOS PARA O CRS DO RASTER
+# ============================================================
+
+# O raster e os pontos precisam estar no mesmo sistema de coordenadas.
+# Aqui transformamos os pontos para o CRS do raster.
+
+pontos_raster_crs <- st_transform(
+  pontos,
+  crs(raster_qf)
+)
+
+cat("\nCRS dos pontos após transformação:\n")
+print(st_crs(pontos_raster_crs))
+
+# ============================================================
+# PARTE 4 — EXTRAIR VALORES DO RASTER NOS PONTOS
+# ============================================================
+
+# Converter sf para SpatVector, formato usado pelo pacote terra
+pontos_vect <- vect(pontos_raster_crs)
+
+# Extrair valores do raster
+valores_extraidos <- terra::extract(
+  raster_qf,
+  pontos_vect
+)
+
+head(valores_extraidos)
+names(valores_extraidos)
+
+# ============================================================
+# PARTE 5 — JUNTAR VALORES EXTRAÍDOS COM OS ATRIBUTOS DOS PONTOS
+# ============================================================
+
+nome_coluna_raster <- names(valores_extraidos)[2]
+
+valores_extraidos <- valores_extraidos %>%
+  rename(
+    QF_v2 = all_of(nome_coluna_raster)
+  )
+
+pontos_com_id <- pontos %>%
+  mutate(
+    ID = row_number(),
+    Codigo = as.character(Codigo)
+  )
+
+tabela_final <- pontos_com_id %>%
+  st_drop_geometry() %>%
+  left_join(
+    valores_extraidos,
+    by = "ID"
+  ) %>%
+  select(
+    -ID
+  )
+
+head(tabela_final)
+
+```
+
+```{r}
+## ============================================================
+# PARTE 6 — LER E JUNTAR TABELA DE RENDIMENTO HIDROLÓGICO
+# ============================================================
+
+rendimento_hidrologico <- read_csv2(
+  tabela_volume,
+  show_col_types = FALSE
+) %>%
+  mutate(
+    Codigo = as.character(Codigo)
+  )
+
+names(rendimento_hidrologico)
+
+tabela_final <- tabela_final %>%
+  left_join(
+    rendimento_hidrologico,
+    by = "Codigo"
+  )
+
+head(tabela_final)
+names(tabela_final)
+
+```
+
+
+```{r}
+# ============================================================
+# PARTE 7 — CALCULAR MÉDIA DOS ANOS DE RENDIMENTO
+#            Selecionando os últimos 5 anos até o ano final
+# ============================================================
+
+# Escolha aqui o ano final e a quantidade de anos
+ano_final <- 2024
+n_anos_media <- 5
+
+anos_media <- (ano_final - n_anos_media + 1):ano_final
+
+cat("Anos usados na média:\n")
+print(anos_media)
+
+# Criar nomes das colunas esperadas
+colunas_mm <- paste0("mm_", anos_media)
+
+# Conferir se essas colunas existem na tabela
+colunas_mm_existentes <- colunas_mm[
+  colunas_mm %in% names(tabela_final)
+]
+
+colunas_mm_faltando <- colunas_mm[
+  !colunas_mm %in% names(tabela_final)
+]
+
+cat("Colunas encontradas:\n")
+print(colunas_mm_existentes)
+
+cat("Colunas faltando:\n")
+print(colunas_mm_faltando)
+
+if (length(colunas_mm_existentes) == 0) {
+  stop("Nenhuma coluna dos anos selecionados foi encontrada na tabela_final.")
+}
+
+# Calcular média, mínimo, máximo e desvio padrão
+# NA é ignorado automaticamente
+tabela_final <- tabela_final %>%
+  rowwise() %>%
+  mutate(
+    n_anos_validos = sum(!is.na(c_across(all_of(colunas_mm_existentes)))),
+    
+    media_mm = ifelse(
+      n_anos_validos > 0,
+      mean(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    ),
+    
+    min_mm = ifelse(
+      n_anos_validos > 0,
+      min(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    ),
+    
+    max_mm = ifelse(
+      n_anos_validos > 0,
+      max(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    ),
+    
+    sd_mm = ifelse(
+      n_anos_validos > 1,
+      sd(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+head(
+  tabela_final %>%
+    select(
+      Codigo,
+      all_of(colunas_mm_existentes),
+      n_anos_validos,
+      media_mm,
+      min_mm,
+      max_mm,
+      sd_mm,
+      QF_v2
+    )
+)
+```
+
+
+```{r}
+# ============================================================
+# PARTE 8 — GRÁFICO 1:1 QUADRADO E COM MESMA ESCALA
+# ============================================================
+
+dados_grafico <- tabela_final %>%
+  filter(
+    !is.na(media_mm),
+    !is.na(QF_v2),
+    is.finite(media_mm),
+    is.finite(QF_v2)
+  )
+
+limites <- range(
+  c(dados_grafico$media_mm, dados_grafico$QF_v2),
+  na.rm = TRUE
+)
+
+margem <- diff(limites) * 0.05
+
+limites <- c(
+  limites[1] - margem,
+  limites[2] + margem
+)
+
+grafico_1_1 <- ggplot(
+  dados_grafico,
+  aes(
+    x = media_mm,
+    y = QF_v2
+  )
+) +
+  geom_point(size = 2, alpha = 0.75) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  scale_x_continuous(
+    limits = limites
+  ) +
+  scale_y_continuous(
+    limits = limites
+  ) +
+  coord_equal() +
+  labs(
+    title = "Comparação 1:1 do rendimento hídrico",
+    subtitle = "Média dos dados observados vs valor extraído do raster Quick flow",
+    x = "Rendimento hídrico observado médio (mm/ano)",
+    y = "Rendimento hídrico do raster Quick flow (mm/ano)"
+  ) +
+  theme_bw()
+
+grafico_1_1
+
+# ============================================================
+# PARTE 9 — SALVAR CSV E GRÁFICO
+# ============================================================
+
+write_csv2(
+  tabela_final,
+  arquivo_saida_csv
+)
+
+arquivo_grafico <- file.path(
+  dir_saida,
+  "grafico_1_1_rendimento_hidrico.png"
+)
+
+ggsave(
+  filename = arquivo_grafico,
+  plot = grafico_1_1,
+  width = 7,
+  height = 7,
+  dpi = 300
+)
+
+cat("Tabela salva em:\n", arquivo_saida_csv, "\n")
+cat("Gráfico salvo em:\n", arquivo_grafico, "\n")
+```
+
+```{r}
+# ============================================================
+# PARTE 10 — SALVAR SHAPEFILE FINAL COMPLETO
+# ============================================================
+
+pontos_shp_final <- pontos_com_id %>%
+  left_join(
+    valores_extraidos,
+    by = "ID"
+  ) %>%
+  select(
+    -ID
+  ) %>%
+  left_join(
+    tabela_final %>%
+      st_drop_geometry() %>%
+      select(
+        Codigo,
+        all_of(colunas_mm),
+        n_anos_validos,
+        media_mm,
+        min_mm,
+        max_mm,
+        sd_mm
+      ),
+    by = "Codigo"
+  )
+
+st_write(
+  pontos_shp_final,
+  arquivo_saida_shp,
+  delete_layer = TRUE
+)
+
+cat("Shapefile salvo em:\n", arquivo_saida_shp, "\n")
+
+
+```
+
+
+```{r}
+# ============================================================
+# TESTE — GRÁFICO 1:1 COM VARIAÇÃO ANUAL
+#          Ponto = média sem zeros
+#          Barra = mínimo-máximo sem zeros
+# ============================================================
+
+dados_grafico_dispersao <- tabela_final %>%
+  filter(
+    !is.na(media_mm),
+    !is.na(QF_v2),
+    !is.na(min_mm),
+    !is.na(max_mm),
+    is.finite(media_mm),
+    is.finite(QF_v2),
+    is.finite(min_mm),
+    is.finite(max_mm)
+  )
+
+limites_teste <- range(
+  c(
+    dados_grafico_dispersao$min_mm,
+    dados_grafico_dispersao$max_mm,
+    dados_grafico_dispersao$QF_v2
+  ),
+  na.rm = TRUE
+)
+
+margem_teste <- diff(limites_teste) * 0.05
+
+limites_teste <- c(
+  limites_teste[1] - margem_teste,
+  limites_teste[2] + margem_teste
+)
+
+grafico_1_1_dispersao_teste <- ggplot(
+  dados_grafico_dispersao,
+  aes(
+    x = media_mm,
+    y = QF_v2
+  )
+) +
+  geom_segment(
+    aes(
+      x = min_mm,
+      xend = max_mm,
+      y = QF_v2,
+      yend = QF_v2
+    ),
+    linewidth = 0.6,
+    alpha = 0.6
+  ) +
+  geom_point(
+    size = 2.5,
+    alpha = 0.85
+  ) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  scale_x_continuous(
+    limits = limites_teste
+  ) +
+  scale_y_continuous(
+    limits = limites_teste
+  ) +
+  coord_equal() +
+  labs(
+    title = "Comparação 1:1 com variação anual",
+    subtitle = "Ponto = média  | Barra = mínimo-máximo",
+    x = "Rendimento hídrico médio observado (mm/ano)",
+    y = "Rendimento hídrico do raster Quick Flow (mm/ano)"
+  ) +
+  theme_bw()
+
+grafico_1_1_dispersao_teste
+
+arquivo_grafico_teste <- file.path(
+  dir_saida,
+  "teste_grafico_1_1_com_variacao_anual_sem_zeros.png"
+)
+
+ggsave(
+  filename = arquivo_grafico_teste,
+  plot = grafico_1_1_dispersao_teste,
+  width = 7,
+  height = 7,
+  dpi = 300
+)
+
+cat("Gráfico salvo em:\n", arquivo_grafico_teste, "\n")
+
+```
+
+```{r}
+# ============================================================
+# LER TABELA DE VAZÕES
+# ============================================================
+
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(readr)
+library(ggplot2)
+library(stringr)
+
+arquivo_vazoes <- "C:/trab/estacoes/tabela_vazoes.csv"
+
+tabela_vazoes <- read_csv2(
+  arquivo_vazoes,
+  show_col_types = FALSE
+)
+
+tabela_vazoes <- tabela_vazoes %>%
+  mutate(
+    Data = as.Date(Data)
+  )
+# ============================================================
+# ORGANIZAR VAZÕES EM FORMATO LONGO
+# Excluir ano 2026
+# ============================================================
+
+vazoes_longas_grafico <- tabela_vazoes %>%
+  pivot_longer(
+    cols = -Data,
+    names_to = "Codigo",
+    values_to = "Vazao"
+  ) %>%
+  mutate(
+    Ano = year(Data),
+    Mes = month(Data),
+    Vazao = as.numeric(Vazao)
+  ) %>%
+  filter(
+    Ano != 2026,
+    !is.na(Vazao)
+  )
+
+head(vazoes_longas_grafico)
+
+# ============================================================
+# GRÁFICO 1 — VAZÃO MÉDIA ANUAL POR ESTAÇÃO
+# ============================================================
+
+vazao_anual <- vazoes_longas_grafico %>%
+  group_by(
+    Codigo,
+    Ano
+  ) %>%
+  summarise(
+    vazao_media_anual = mean(Vazao, na.rm = TRUE),
+    dias_com_dado = n(),
+    .groups = "drop"
+  )
+
+grafico_vazao_anual <- ggplot(
+  vazao_anual,
+  aes(
+    x = Ano,
+    y = vazao_media_anual,
+    group = Codigo
+  )
+) +
+  geom_line(alpha = 0.5) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  labs(
+    title = "Comportamento anual da vazão por estação",
+    subtitle = "Vazão média anual — ano 2026 excluído",
+    x = "Ano",
+    y = "Vazão média anual (m³/s)"
+  ) +
+  theme_bw()
+
+grafico_vazao_anual
+ggsave(
+  filename = "C:/trab/estacoes/grafico_vazao_media_anual.png",
+  plot = grafico_vazao_anual,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+# ============================================================
+# GRÁFICO 2 — MÉDIA GERAL ANUAL DAS ESTAÇÕES
+# ============================================================
+
+vazao_anual_geral <- vazao_anual %>%
+  group_by(Ano) %>%
+  summarise(
+    media_geral = mean(vazao_media_anual, na.rm = TRUE),
+    min_geral = min(vazao_media_anual, na.rm = TRUE),
+    max_geral = max(vazao_media_anual, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+grafico_vazao_anual_geral <- ggplot(
+  vazao_anual_geral,
+  aes(
+    x = Ano,
+    y = media_geral
+  )
+) +
+  geom_ribbon(
+    aes(
+      ymin = min_geral,
+      ymax = max_geral
+    ),
+    alpha = 0.2
+  ) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Comportamento anual médio da vazão",
+    subtitle = "Linha = média das estações | Faixa = mínimo-máximo entre estações | 2026 excluído",
+    x = "Ano",
+    y = "Vazão média anual (m³/s)"
+  ) +
+  theme_bw()
+
+grafico_vazao_anual_geral
+ggsave(
+  filename = "C:/trab/estacoes/grafico_vazao_media_anual_geral.png",
+  plot = grafico_vazao_anual_geral,
+  width = 9,
+  height = 6,
+  dpi = 300
+)
+
+# ============================================================
+# GRÁFICO 3 — DISTRIBUIÇÃO ANUAL DAS VAZÕES
+# ============================================================
+
+grafico_boxplot_anual <- ggplot(
+  vazao_anual,
+  aes(
+    x = factor(Ano),
+    y = vazao_media_anual
+  )
+) +
+  geom_boxplot() +
+  labs(
+    title = "Distribuição da vazão média anual entre estações",
+    subtitle = "Cada boxplot representa as estações em um ano | 2026 excluído",
+    x = "Ano",
+    y = "Vazão média anual (m³/s)"
+  ) +
+  theme_bw()
+
+grafico_boxplot_anual
+
+ggsave(
+  filename = "C:/trab/estacoes/grafico_boxplot_vazao_anual.png",
+  plot = grafico_boxplot_anual,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+
+```
