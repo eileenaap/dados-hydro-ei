@@ -18,7 +18,7 @@ Fazer o gráfico 1:1
 
 ```{r setup, include=FALSE}
 # ============================================================
-# CONFIGURAÇÕES GERAIS
+# CONFIGURAÇÕES GERAIS — COMPARATIVO dados observados e modelados 
 # ============================================================
 
 pacotes <- c(
@@ -29,6 +29,7 @@ pacotes <- c(
   "stringr",
   "ggplot2"
 )
+
 pacotes_instalados <- pacotes %in% rownames(installed.packages())
 
 if (any(!pacotes_instalados)) {
@@ -43,24 +44,47 @@ library(stringr)
 library(ggplot2)
 
 # ------------------------------------------------------------
-# Caminhos de entrada
+# Pastas principais
 # ------------------------------------------------------------
 
-arquivo_raster <- "C:/trab/tx_invest/SWY_AL/output/QF_v2.tif"
+dir_base <- "C:/trab/estacoes"
 
-arquivo_pontos <- "C:/trab/estacoes/estacoes_check.shp"
+dir_input <- file.path(
+  dir_base,
+  "input_compara"
+)
 
-tabela_volume <- "C:/trab/SWY_Amazonia/02_dados_processados/rendimento_hidrologico/rendimento_hidrologico_mm_ano.csv"
-
-# ------------------------------------------------------------
-# Pasta de saída
-# ------------------------------------------------------------
-
-dir_saida <- "C:/trab/SWY_Amazonia/04_resultados"
+dir_saida <- file.path(
+  dir_base,
+  "saida_compara"
+)
 
 if (!dir.exists(dir_saida)) {
   dir.create(dir_saida, recursive = TRUE)
 }
+
+# ------------------------------------------------------------
+# Arquivos de entrada
+# ------------------------------------------------------------
+
+arquivo_raster <- file.path(
+  dir_input,
+  "QF_v2.tif"
+)
+
+arquivo_pontos <- file.path(
+  dir_input,
+  "estacoes_check.shp"
+)
+
+arquivo_rendimento <- file.path(
+  dir_input,
+  "rendimento_hidrologico_mm_ano.csv"
+)
+
+# ------------------------------------------------------------
+# Arquivos de saída
+# ------------------------------------------------------------
 
 arquivo_saida_csv <- file.path(
   dir_saida,
@@ -72,12 +96,30 @@ arquivo_saida_shp <- file.path(
   "rendimento_hidrico_com_QF_v2.shp"
 )
 
-# ============================================================
-# PARTE 1 — VERIFICAR ARQUIVOS DE ENTRADA
-# ============================================================
+arquivo_grafico <- file.path(
+  dir_saida,
+  "grafico_1_1_rendimento_hidrico.png"
+)
+
+arquivo_grafico_variacao <- file.path(
+  dir_saida,
+  "grafico_1_1_rendimento_hidrico_com_variacao.png"
+)
+
+# ------------------------------------------------------------
+# Parâmetros da média
+# ------------------------------------------------------------
+
+ano_final <- 2024
+n_anos_media <- 5
+
+# ------------------------------------------------------------
+# Verificar arquivos de entrada
+# ------------------------------------------------------------
 
 cat("Raster existe? ", file.exists(arquivo_raster), "\n")
 cat("Shapefile existe? ", file.exists(arquivo_pontos), "\n")
+cat("Tabela de rendimento existe? ", file.exists(arquivo_rendimento), "\n")
 
 if (!file.exists(arquivo_raster)) {
   stop("Raster não encontrado: ", arquivo_raster)
@@ -86,6 +128,12 @@ if (!file.exists(arquivo_raster)) {
 if (!file.exists(arquivo_pontos)) {
   stop("Shapefile não encontrado: ", arquivo_pontos)
 }
+
+if (!file.exists(arquivo_rendimento)) {
+  stop("Tabela de rendimento não encontrada: ", arquivo_rendimento)
+}
+
+knitr::opts_chunk$set(echo = TRUE)
 
 ```
 

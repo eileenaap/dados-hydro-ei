@@ -1,5 +1,5 @@
 ---
-title: "Listadadosshpanual"
+title: "Calcular volume e rendimento hídrico"
 author: "Eileen Acosta"
 date: "2026-05-19"
 output: html_document
@@ -10,127 +10,129 @@ output: html_document
 # CONFIGURAÇÕES GERAIS
 # ============================================================
 
+pacotes <- c(
+  "sf",
+  "dplyr",
+  "tidyr",
+  "readr",
+  "stringr",
+  "lubridate",
+  "ggplot2"
+)
+
+pacotes_instalados <- pacotes %in% rownames(installed.packages())
+
+if (any(!pacotes_instalados)) {
+  install.packages(pacotes[!pacotes_instalados])
+}
+
 library(sf)
 library(dplyr)
 library(tidyr)
 library(readr)
 library(stringr)
+library(lubridate)
+library(ggplot2)
 
-dir_projeto <- "C:/trab/SWY_Amazonia"
+# ------------------------------------------------------------
+# Pastas principais
+# ------------------------------------------------------------
+# o diretoria base deve ter as estações de vazão em arquivos separados formato com 15 linhas de encabeçado seleccionadas em formato .cvs
+
+dir_base <- "C:/trab/estacoes"
+
+dir_input <- file.path(
+  dir_base,
+  "inputdata"
+)
+
+dir_saida <- file.path(
+  dir_base,
+  "resul_vazao"
+)
+
+if (!dir.exists(dir_saida)) {
+  dir.create(dir_saida, recursive = TRUE)
+}
+
+# ------------------------------------------------------------
+# Arquivos de entrada
+# ------------------------------------------------------------
+# o shapefile de estações fitradas no passo 1_seleccoinar_filtrar_estações
 
 arquivo_estacoes <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "estacoes_selecionadas",
+  dir_input,
   "estacoes_atualizadas_apos_2018_dentro_bacias.shp"
 )
 
+arquivo_tabela_vazoes <- file.path( #tabela resultado do 2_organizar dados
+  dir_input,
+  "tabela_vazoes.csv"
+)
+
+# ------------------------------------------------------------
+# Arquivos de saída
+# ------------------------------------------------------------
+
 arquivo_estacoes_area <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "estacoes_selecionadas",
+  dir_saida,
   "estacoes_codigo_nome_lat_lon_area.csv"
 )
 
-arquivo_volume_hidrologico <- "C:/trab/estacoes/volume_hidrologico.csv"
-
-dir_saida_estacoes <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "estacoes_selecionadas"
-)
-
-dir_saida_rendimento <- file.path(
-  dir_projeto,
-  "02_dados_processados",
-  "rendimento_hidrologico"
-)
-
-if (!dir.exists(dir_saida_rendimento)) {
-  dir.create(dir_saida_rendimento, recursive = TRUE)
-}
-```
-##Parte 1 — Ler shapefile das estações e selecionar colunas desejadas e Extrair Código, Nome, Latitude, Longitude e Área
-
-##Parte 7 — Calcular volume por ano hidrológico
-```{r}
-# ============================================================
-# PARTE 7 — CALCULAR VOLUME POR ANO HIDROLÓGICO
-# ============================================================
-
-volume_hidrologico <- vazoes_longas %>%
-  mutate(
-    ano_hidrologico = ifelse(
-      month(Data) >= 10,
-      year(Data) + 1,
-      year(Data)
-    ),
-    volume_m3_dia = Vazao * 86400
-  ) %>%
-  group_by(
-    ano_hidrologico,
-    Codigo
-  ) %>%
-  summarise(
-    soma_vazao = sum(Vazao, na.rm = TRUE),
-    volume_m3 = sum(volume_m3_dia, na.rm = TRUE),
-    dias_com_dado = sum(!is.na(Vazao)),
-    .groups = "drop"
-  ) %>%
-  arrange(
-    Codigo,
-    ano_hidrologico
-  )
-
-head(volume_hidrologico)
-
-```
-##Parte 8 — Criar tabela final de volume hidrológico
-
-```{r}
-# ============================================================
-# PARTE 8 — CRIAR E SALVAR TABELA DE VOLUME HIDROLÓGICO anual 
-# ============================================================
-
-tabela_volume_hidrologico <- volume_hidrologico %>%
-  select(
-    ano_hidrologico,
-    Codigo,
-    volume_m3
-  ) %>%
-  pivot_wider(
-    names_from = Codigo,
-    values_from = volume_m3
-  ) %>%
-  arrange(
-    ano_hidrologico
-  )
-
-head(tabela_volume_hidrologico)
-
 arquivo_volume_hidrologico <- file.path(
-  dir_base,
+  dir_saida,
   "volume_hidrologico.csv"
 )
 
-write_csv2(
-  tabela_volume_hidrologico,
-  arquivo_volume_hidrologico
+arquivo_rendimento_csv <- file.path(
+  dir_saida,
+  "rendimento_hidrologico_mm_ano.csv"
 )
 
-cat("Tabela de volume hidrológico salva em:\n", arquivo_volume_hidrologico, "\n")
+arquivo_rendimento_shp <- file.path(
+  dir_saida,
+  "rendimento_hidrologico_mm_ano.shp"
+)
+
+arquivo_grafico_boxplot <- file.path(
+  dir_saida,
+  "grafico_boxplot_vazao_anual.png"
+)
+
+# ------------------------------------------------------------
+# Verificar arquivos de entrada
+# ------------------------------------------------------------
+
+cat("Shapefile existe? ", file.exists(arquivo_estacoes), "\n")
+cat("Tabela de vazões existe? ", file.exists(arquivo_tabela_vazoes), "\n")
+
+if (!file.exists(arquivo_estacoes)) {
+  stop("Shapefile não encontrado: ", arquivo_estacoes)
+}
+
+if (!file.exists(arquivo_tabela_vazoes)) {
+  stop("Tabela de vazões não encontrada: ", arquivo_tabela_vazoes)
+}
+
+knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
+`
 
-```{r }
+
+```{r}
 # ============================================================
 # PARTE 1 — LER SHAPEFILE DAS ESTAÇÕES
 # ============================================================
 
 estacoes <- st_read(arquivo_estacoes)
 
+cat("Número de estações:", nrow(estacoes), "\n")
+
 names(estacoes)
+
+
 # ============================================================
 # PARTE 2 — SELECIONAR COLUNAS DE INTERESSE
 # ============================================================
@@ -173,100 +175,153 @@ estacoes_resumo <- estacoes %>%
 
 head(estacoes_resumo)
 
-```
-
-
-##Parte 3 — Salvar tabela de estações com área
-
-```{r }
-# ============================================================
-# PARTE 3 — SALVAR TABELA DE ESTAÇÕES COM ÁREA
-# ============================================================
-
 write_csv2(
   estacoes_resumo,
   arquivo_estacoes_area
 )
 
-cat("Arquivo salvo em:\n", arquivo_estacoes_area, "\n")
-```
+cat("Tabela de estações com área salva em:\n", arquivo_estacoes_area, "\n")
 
-## Parte 4 — Ler tabela de áreas e volume hidrológico
-
-
-```{r}
 # ============================================================
-# PARTE 4 — LER TABELAS DE ÁREA E VOLUME HIDROLÓGICO
+# PARTE 3 — LER TABELA DE VAZÕES
 # ============================================================
 
-estacoes_area <- read_csv2(
-  arquivo_estacoes_area,
-  show_col_types = FALSE
-) %>%
-  mutate(
-    Codigo = as.character(Codigo),
-    ArDrngm = as.numeric(ArDrngm)
-  )
-
-volume_hidrologico <- read_csv2(
-  arquivo_volume_hidrologico,
+tabela_vazoes <- read_csv2(
+  arquivo_tabela_vazoes,
   show_col_types = FALSE
 )
 
-names(estacoes_area)
-names(volume_hidrologico)
+names(tabela_vazoes)
 
-head(estacoes_area)
-head(volume_hidrologico)
-```
-Tabela de áreas: estacoes_codigo_nome_lat_lon_area.csv
-Tabela de volume: volume_hidrologico.csv
-Shapefile das estações: para manter a geometria no final
+tabela_vazoes <- tabela_vazoes %>%
+  mutate(
+    Data = as.Date(Data)
+  )
 
-A fórmula é:
+head(tabela_vazoes)
 
-rendimento_mm_ano = volume_m3 / area_km2 / 1000
-
-assumindo que ArDrngm está em km².
-
-##Parte 5 — Transformar volume hidrológico para formato longo
-
-```{r}
 # ============================================================
-# PARTE 5 — TRANSFORMAR VOLUME PARA FORMATO LONGO
+# PARTE 4 — TRANSFORMAR VAZÕES PARA FORMATO LONGO
 # ============================================================
 
-volume_longo <- volume_hidrologico %>%
+vazoes_longas <- tabela_vazoes %>%
   pivot_longer(
-    cols = -ano_hidrologico,
+    cols = -Data,
     names_to = "Codigo",
-    values_to = "volume_m3"
+    values_to = "Vazao"
   ) %>%
   mutate(
     Codigo = as.character(Codigo),
-    ano_hidrologico = as.integer(ano_hidrologico),
-    volume_m3 = as.numeric(volume_m3)
+    Vazao = as.numeric(Vazao)
+  ) %>%
+  filter(
+    !is.na(Data),
+    !is.na(Vazao)
   )
 
-head(volume_longo)
+head(vazoes_longas)
+
+cat("Registros de vazão:", nrow(vazoes_longas), "\n")
+cat("Estações com vazão:", length(unique(vazoes_longas$Codigo)), "\n")
+
 ```
 
-##Parte 6 — Calcular rendimento hidrológico em mm/ano
-
-Fórmula usada:
-
-rendimento_mm_ano = volume_m3 / ArDrngm / 1000
-
-Assumindo que ArDrngm está em km².
 
 ```{r}
 # ============================================================
-# PARTE 6 — CALCULAR RENDIMENTO HIDROLÓGICO EM mm/ano
+# PARTE 5 — CALCULAR VOLUME POR ANO HIDROLÓGICO
+#            Mantendo apenas anos com pelo menos 300 dados
 # ============================================================
 
-rendimento_longo <- volume_longo %>%
+min_dias_validos <- 300
+
+volume_hidrologico_longo <- vazoes_longas %>%
+  mutate(
+    ano_hidrologico = ifelse(
+      month(Data) >= 10,
+      year(Data) + 1,
+      year(Data)
+    ),
+    
+    # Converter vazão média diária de m³/s para volume diário em m³/dia
+    volume_m3_dia = Vazao * 86400
+  ) %>%
+  group_by(
+    ano_hidrologico,
+    Codigo
+  ) %>%
+  summarise(
+    soma_vazao = sum(Vazao, na.rm = TRUE),
+    volume_m3 = sum(volume_m3_dia, na.rm = TRUE),
+    dias_com_dado = sum(!is.na(Vazao)),
+    .groups = "drop"
+  ) %>%
+  filter(
+    dias_com_dado >= min_dias_validos
+  ) %>%
+  arrange(
+    Codigo,
+    ano_hidrologico
+  )
+
+head(volume_hidrologico_longo)
+
+cat("Registros anuais mantidos:", nrow(volume_hidrologico_longo), "\n")
+
+```
+
+
+```{r}
+# ============================================================
+# PARTE 6 — CRIAR TABELA DE VOLUME HIDROLÓGICO EM FORMATO LARGO
+# ============================================================
+
+volume_hidrologico <- volume_hidrologico_longo %>%
+  select(
+    ano_hidrologico,
+    Codigo,
+    volume_m3
+  ) %>%
+  pivot_wider(
+    names_from = Codigo,
+    values_from = volume_m3
+  ) %>%
+  arrange(
+    ano_hidrologico
+  )
+
+head(volume_hidrologico)
+
+write_csv2(
+  volume_hidrologico,
+  arquivo_volume_hidrologico
+)
+
+cat("Tabela de volume hidrológico salva em:\n", arquivo_volume_hidrologico, "\n")
+
+
+
+```
+
+##Parte 7 — Calcular rendimento hídrico em mm/ano
+
+Fórmula:
+
+rendimento_mm_ano = volume_m3 / area_km2 / 1000
+
+Assumindo que ArDrngm está em km².
+
+
+```{r}
+
+
+# ============================================================
+# PARTE 7 — CALCULAR RENDIMENTO HIDROLÓGICO EM mm/ano
+# ============================================================
+
+rendimento_longo <- volume_hidrologico_longo %>%
   left_join(
-    estacoes_area %>%
+    estacoes_resumo %>%
       select(
         Codigo,
         Nome,
@@ -285,12 +340,9 @@ rendimento_longo <- volume_longo %>%
   )
 
 head(rendimento_longo)
-```
-##Parte 7 — Conferir estações sem área
 
-```{r}
 # ============================================================
-# PARTE 7 — CONFERIR ESTAÇÕES SEM ÁREA DE DRENAGEM
+# PARTE 8 — CONFERIR ESTAÇÕES SEM ÁREA DE DRENAGEM
 # ============================================================
 
 estacoes_sem_area <- rendimento_longo %>%
@@ -305,12 +357,14 @@ cat("Estações sem área de drenagem:", nrow(estacoes_sem_area), "\n")
 
 estacoes_sem_area
 
+
 ```
-##Parte 8 — Criar tabela final em formato largo
+
 
 ```{r}
+
 # ============================================================
-# PARTE 8 — CRIAR TABELA FINAL EM FORMATO LARGO
+# PARTE 9 — CRIAR TABELA FINAL DE RENDIMENTO EM FORMATO LARGO
 # ============================================================
 
 rendimento_largo <- rendimento_longo %>%
@@ -336,33 +390,25 @@ rendimento_largo <- rendimento_longo %>%
 
 head(rendimento_largo)
 
-```
-##Parte 9 — Salvar CSV final
 
-```{r}
 # ============================================================
-# PARTE 9 — SALVAR CSV COM RENDIMENTO mm/ano
+# PARTE 10 — SALVAR CSV COM RENDIMENTO mm/ano
 # ============================================================
-
-arquivo_rendimento_csv <- file.path(
-  dir_saida_rendimento,
-  "rendimento_hidrologico_mm_ano.csv"
-)
 
 write_csv2(
   rendimento_largo,
   arquivo_rendimento_csv
 )
 
-cat("CSV salvo em:\n", arquivo_rendimento_csv, "\n")
+cat("CSV de rendimento salvo em:\n", arquivo_rendimento_csv, "\n")
+
 
 ```
 
 
-##Parte 10 — Criar shapefile final
 ```{r}
 # ============================================================
-# PARTE 10 — CRIAR SHAPEFILE FINAL COM RENDIMENTO mm/ano
+# PARTE 11 — CRIAR SHAPEFILE FINAL COM RENDIMENTO mm/ano
 # ============================================================
 
 estacoes_shp <- st_read(
@@ -382,11 +428,6 @@ rendimento_shp <- estacoes_shp %>%
     by = "Codigo"
   )
 
-arquivo_rendimento_shp <- file.path(
-  dir_saida_rendimento,
-  "rendimento_hidrologico_mm_ano.shp"
-)
-
 st_write(
   rendimento_shp,
   arquivo_rendimento_shp,
@@ -394,5 +435,69 @@ st_write(
 )
 
 cat("Shapefile salvo em:\n", arquivo_rendimento_shp, "\n")
+```
+
+```{r}
+
+# ============================================================
+# PARTE 12 — GRÁFICO DE DISTRIBUIÇÃO ANUAL DAS VAZÕES
+# ============================================================
+
+vazao_anual <- vazoes_longas %>%
+  mutate(
+    Ano = year(Data)
+  ) %>%
+  filter(
+    Ano != 2026
+  ) %>%
+  group_by(
+    Codigo,
+    Ano
+  ) %>%
+  summarise(
+    vazao_media_anual = mean(Vazao, na.rm = TRUE),
+    dias_com_dado = n(),
+    .groups = "drop"
+  )
+
+grafico_boxplot_anual <- ggplot(
+  vazao_anual,
+  aes(
+    x = factor(Codigo),
+    y = vazao_media_anual
+  )
+) +
+  geom_boxplot() +
+  scale_y_log10() +
+  labs(
+    title = "Distribuição da vazão média anual entre estações",
+    subtitle = "Cada boxplot representa os anos de uma estação | 2026 excluído",
+    x = "Código da estação",
+    y = "Vazão média anual (m³/s) - escala logarítmica"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1,
+      size = 3
+    )
+  )
+
+grafico_boxplot_anual
+
+ggsave(
+  filename = arquivo_grafico_boxplot,
+  plot = grafico_boxplot_anual,
+  width = 12,
+  height = 7,
+  dpi = 300
+)
+
+cat("Gráfico salvo em:\n", arquivo_grafico_boxplot, "\n")
 
 ```
+
+
+
