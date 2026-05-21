@@ -1,0 +1,186 @@
+---
+title: "Untitled"
+author: "Eileen Acosta"
+date: "2026-05-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# ------------------------------------------------------------
+# Pacotes
+# ------------------------------------------------------------
+library(terra)
+library(sf)
+library(whitebox)
+
+# ------------------------------------------------------------
+# Pastas principais
+# ------------------------------------------------------------
+dir_base <- "C:/trab/estacoes"
+
+dir_input <- file.path(dir_base, "input_compara")
+dir_saida <- file.path(dir_base, "saida_compara")
+dir_bacias_ind <- file.path(dir_saida, "bacias_individuais")
+
+dir.create(dir_saida, recursive = TRUE, showWarnings = FALSE)
+dir.create(dir_bacias_ind, recursive = TRUE, showWarnings = FALSE)
+
+# ------------------------------------------------------------
+# Arquivos de entrada
+# ------------------------------------------------------------
+arquivo_dem <- file.path(dir_input, "demfil2.tif")
+arquivo_pontos <- file.path(dir_input, "estacoes_check.shp")
+
+# ------------------------------------------------------------
+# Ler DEM e pontos
+# ------------------------------------------------------------
+dem <- rast(arquivo_dem)
+pontos <- st_read(arquivo_pontos)
+
+# Projetar pontos para o CRS do DEM
+pontos <- st_transform(pontos, crs(dem))
+
+# Criar ID único
+pontos$ID_BACIA <- 1:nrow(pontos)
+
+arquivo_pontos_proj <- file.path(dir_saida, "estacoes_check_proj.shp")
+st_write(pontos, arquivo_pontos_proj, delete_layer = TRUE, quiet = TRUE)
+
+# ------------------------------------------------------------
+# Arquivos temporários
+# ------------------------------------------------------------
+d8_pointer <- tempfile(fileext = ".tif")
+flow_acc <- tempfile(fileext = ".tif")
+pontos_snap <- file.path(dir_saida, "estacoes_snap.shp")
+
+# ------------------------------------------------------------
+# 1. Direção de fluxo usando o DEM já preenchido
+# ------------------------------------------------------------
+wbt_d8_pointer(
+  dem = arquivo_dem,
+  output = d8_pointer
+)
+
+# ------------------------------------------------------------
+# 2. Acumulação de fluxo
+# ------------------------------------------------------------
+wbt_d8_flow_accumulation(
+  input = arquivo_dem,
+  output = flow_acc,
+  out_type = "cells"
+)
+
+# ------------------------------------------------------------
+# 3. Snap dos pontos para a drenagem
+# ------------------------------------------------------------
+snap_dist <- 300
+
+wbt_snap_pour_points(
+  pour_pts = arquivo_pontos_proj,
+  flow_accum = flow_acc,
+  output = pontos_snap,
+  snap_dist = snap_dist
+)
+
+pontos_snap_sf <- st_read(pontos_snap)
+
+# Garantir ID após o snap
+pontos_snap_sf$ID_BACIA <- pontos$ID_BACIA
+
+# ------------------------------------------------------------
+# 4. Loop: gerar uma bacia por ponto sem guardar rasters
+# ------------------------------------------------------------
+lista_bacias <- list()
+
+for (i in 1:nrow(pontos_snap_sf)) {
+  
+  id <- pontos_snap_sf$ID_BACIA[i]
+  message("Processando bacia do ponto: ", id)
+  
+  ponto_i <- pontos_snap_sf[i, ]
+  
+  arquivo_ponto_i <- file.path(
+    tempdir(),
+    paste0("ponto_", id, ".shp")
+  )
+  
+  st_write(
+    ponto_i,
+    arquivo_ponto_i,
+    delete_layer = TRUE,
+    quiet = TRUE
+  )
+  
+  # raster temporário, não fica salvo na pasta final
+  bacia_raster_i <- tempfile(fileext = ".tif")
+  
+  bacia_shp_i <- file.path(
+    dir_bacias_ind,
+    paste0("bacia_", id, ".shp")
+  )
+  
+  wbt_watershed(
+    d8_pntr = d8_pointer,
+    pour_pts = arquivo_ponto_i,
+    output = bacia_raster_i
+  )
+  
+  bacia_r <- rast(bacia_raster_i)
+  
+  bacia_poly <- as.polygons(
+    bacia_r,
+    dissolve = TRUE,
+    na.rm = TRUE
+  )
+  
+  bacia_poly$ID_BACIA <- id
+  
+  writeVector(
+    bacia_poly,
+    bacia_shp_i,
+    overwrite = TRUE
+  )
+  
+  lista_bacias[[i]] <- bacia_poly
+}
+
+# ------------------------------------------------------------
+# 5. Juntar todas as bacias em um shapefile único
+# ------------------------------------------------------------
+bacias_todas <- do.call(rbind, lista_bacias)
+
+arquivo_bacias_todas <- file.path(
+  dir_saida,
+  "bacias_tributarias_todos_pontos.shp"
+)
+
+writeVector(
+  bacias_todas,
+  arquivo_bacias_todas,
+  overwrite = TRUE
+)
+
+message("Finalizado.")
+message("Bacias individuais: ", dir_bacias_ind)
+message("Bacias juntas: ", arquivo_bacias_todas)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
