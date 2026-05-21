@@ -73,7 +73,7 @@ wbt_d8_flow_accumulation(
 # ------------------------------------------------------------
 # 3. Snap dos pontos para a drenagem
 # ------------------------------------------------------------
-snap_dist <- 300
+snap_dist <- 3000
 
 wbt_snap_pour_points(
   pour_pts = arquivo_pontos_proj,
