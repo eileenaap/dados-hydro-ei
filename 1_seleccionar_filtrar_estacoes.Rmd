@@ -3,14 +3,10 @@ title: "filtrar estacoes"
 output: html_document
 date: "2026-05-14"
 ---
-##Parte 1 — Carregar pacotes e definir caminhos
-Para poder correr este código precisa baixar o invetário de estações da Agencia Nacional de Água 
-cambiar o diretorio do projeto, colocar o local do doretorio para chegar no bsaededados e también do shapefile para relaizar o filtro.
+
+##Parte 1 — Carregar pacotes e definir caminhos Para poder correr este código precisa baixar o invetário de estações da Agencia Nacional de Água cambiar o diretorio do projeto, colocar o local do doretorio para chegar no bsaededados e también do shapefile para relaizar o filtro.
 
 No passo 3 mudar as columnas dependendo dos filtros que você precisa.
-
-
-
 
 ```{r setup, include=FALSE}
 # ============================================================
@@ -190,6 +186,7 @@ print(
 )
 
 ```
+
 Parte 4 — Ler shapefile e transformar para WGS84
 
 ```{r}
@@ -226,7 +223,8 @@ plot(st_geometry(bacias_wgs84))
 
 ```
 
-Parte 5 —  Converter estações filtradas para pontos espaciais
+Parte 5 — Converter estações filtradas para pontos espaciais
+
 ```{r}
 # ============================================================
 # Parte 5 — Converter estações filtradas para pontos espaciais
@@ -244,6 +242,7 @@ st_crs(estacoes_filtradas_sf)
 nrow(estacoes_filtradas_sf)
 
 ```
+
 Parte 6 corrigida — Filtrar estações dentro das bacias
 
 ```{r}
@@ -264,6 +263,7 @@ nrow(estacoes_atualizadas_dentro_bacias)
 ```
 
 Parte 7 — Plotar resultado finalv
+
 ```{r}
 
 
