@@ -69,7 +69,7 @@ if (!dir.exists(dir_saida)) {
 
 arquivo_raster <- file.path(
   dir_input,
-  "QF_v2.tif"
+  "QF_v5.tif"
 )
 
 arquivo_pontos <- file.path(
@@ -88,22 +88,22 @@ arquivo_rendimento <- file.path(
 
 arquivo_saida_csv <- file.path(
   dir_saida,
-  "rendimento_hidrico_com_QF_v2.csv"
+  "rendimento_hidrico_com_QF_v5.csv"
 )
 
 arquivo_saida_shp <- file.path(
   dir_saida,
-  "rendimento_hidrico_com_QF_v2.shp"
+  "rendimento_hidrico_com_QF_v5.shp"
 )
 
 arquivo_grafico <- file.path(
   dir_saida,
-  "grafico_1_1_rendimento_hidrico.png"
+  "grafico_1_1_rendimento_hidricov5.png"
 )
 
 arquivo_grafico_variacao <- file.path(
   dir_saida,
-  "grafico_1_1_rendimento_hidrico_com_variacao.png"
+  "grafico_1_1_rendimento_hidrico_com_variacaov5.png"
 )
 
 # ------------------------------------------------------------
@@ -898,7 +898,7 @@ library(ggplot2)
 
 # transformar pontos em sf
 pontos_qf <- st_as_sf(
-  dados_normais,
+  tabela_final,
   coords = c("Longitd", "Latitud"),
   crs = 4326
 )
