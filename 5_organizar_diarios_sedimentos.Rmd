@@ -1,9 +1,11 @@
 ---
 title: "organizar_dados_hidroweb de descarga sólida e vazão para calcular a concetração"
-author: "Eileen Acosta"
+author: "Leonardo barbosa"
 date: "2026-05-19"
 output: html_document
 ---
+
+## Passo 1: Definições gerais (pacotes, arquivos, anos de interesse)
 
 ```{r setup, include=FALSE}
 # ============================================================
@@ -19,7 +21,8 @@ pacotes <- c(
   "dplyr",
   "readr",
   "tidyr",
-  "lubridate"
+  "lubridate",
+  "ggplot2"
 )
 
 # Instalar pacotes que ainda não estão instalados
@@ -38,9 +41,11 @@ library(dplyr)
 library(readr)
 library(tidyr)
 library(lubridate)
+library(utils)
+library(ggplot2)
 
 # Caminhos principais
-dir_base <- "C:/trab/estacoes"
+dir_base <- "D:/leo/CLUA"
 
 dir_origem <- file.path(
   dir_base,
@@ -63,7 +68,7 @@ arquivo_relatorio_copia <- file.path(
 )
 
 # Anos de interesse
-anos_interesse <- 2014:2025
+anos_interesse <- 2005:2025
 
 # Criar pasta de vazões, se ainda não existir
 if (!dir.exists(dir_sedimentos)) {
@@ -72,48 +77,79 @@ if (!dir.exists(dir_sedimentos)) {
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Passo 1 — Copiar arquivos de vazão para uma pasta única
+## Passo 2: Abrir, compilar e filtrar dados Hidroweb zipados
 
 ```{r }
 
+
 # ============================================================
-# PASSO 1 — COPIAR ARQUIVOS COM "sedimentos" PARA UMA PASTA ÚNICA
+# PASSO 1 NOVO — LER ZIPs ANINHADOS E EXTRAIR SÓ SEDIMENTOS
 # ============================================================
 
-# Procurar todos os arquivos que têm sedimentos
-arquivos_sedimentos_origem <- dir_ls(
-  path = dir_origem,
-  recurse = TRUE,
-  type = "file"
-) %>%
-  .[str_detect(
-    basename(.),
-    regex("Sedimentos", ignore_case = TRUE)
-  )]
+# caminho do zip principal
+zip_principal <- paste0(dir_origem, ".zip")
 
-cat("Arquivos de sedimentos encontrados:", length(arquivos_sedimentos_origem), "\n")
+# pasta temporária
+dir_temp <- file.path(tempdir(), "hidroweb_temp")
 
-# Copiar arquivos encontrados para a pasta única
+if (!dir.exists(dir_temp)) dir.create(dir_temp)
+
+# extrair ZIP principal
+unzip(zip_principal, exdir = dir_temp)
+
+# listar ZIPs internos
+zips_internos <- list.files(
+  dir_temp,
+  pattern = "\\.zip$",
+  full.names = TRUE
+)
+
+cat("Zips internos encontrados:", length(zips_internos), "\n")
+
+# extrair apenas arquivos de sedimento
 relatorio_copia <- map_dfr(
-  arquivos_sedimentos_origem,
-  function(arquivo_origem) {
+  zips_internos,
+  function(zip_file) {
     
-    arquivo_destino <- file.path(
-      dir_sedimentos,
-      basename(arquivo_origem)
-    )
+    resultado <- tryCatch({
+      
+      arquivos_zip <- unzip(zip_file, list = TRUE)
+      
+      arquivos_sed <- arquivos_zip$Name[
+        str_detect(
+          arquivos_zip$Name,
+          regex("Sedimentos", ignore_case = TRUE)
+        )
+      ]
+      
+      if (length(arquivos_sed) == 0) {
+        return(tibble(
+          zip = zip_file,
+          status = "sem sedimentos"
+        ))
+      }
+      
+      unzip(
+        zipfile = zip_file,
+        files = arquivos_sed,
+        exdir = dir_sedimentos
+      )
+      
+      tibble(
+        zip = zip_file,
+        status = "ok"
+      )
+      
+    }, error = function(e) {
+      
+      tibble(
+        zip = zip_file,
+        status = paste("erro:", conditionMessage(e))
+      )
+      
+    })
     
-    ok <- file.copy(
-      from = arquivo_origem,
-      to = arquivo_destino,
-      overwrite = TRUE
-    )
-    
-    tibble(
-      arquivo_origem = arquivo_origem,
-      arquivo_destino = arquivo_destino,
-      status = ifelse(ok, "copiado", "erro")
-    )
+    return(resultado)
   }
 )
 
@@ -129,7 +165,7 @@ write_csv(
 
 ```
 
-## Passo 2 — Listar arquivos de sedimentos copiados
+## Passo 3: Listar arquivo de sedimentos encontrados
 
 ```{r}
 # ============================================================
@@ -148,8 +184,7 @@ head(arquivos_sedimentos)
 
 ```
 
-
-Passo 3 — Criar função para processar um arquivo
+##Passo 4: Criar função para processamento transformação de sedimentos diários comparáveis
 
 ```{r}
 # ============================================================
@@ -171,11 +206,13 @@ processar_arquivo_sed <- function(arquivo) {
     file = arquivo,
     delim = ";",
     skip = 12,
-    locale = locale(
-      decimal_mark = ",",
-      grouping_mark = ".",
-      encoding = "Latin1"
+    locale = locale(encoding = "Latin1"),
+    
+    #força leitura como texto
+    col_types = cols(
+      .default = col_character()
     ),
+    
     show_col_types = FALSE,
     progress = FALSE
   )
@@ -208,15 +245,15 @@ processar_arquivo_sed <- function(arquivo) {
       Codigo = as.character(EstacaoCodigo),
       Data = dmy(Data),
       
-      vazao = parse_number(
-        as.character(Vazao),
-        locale = locale(decimal_mark = ",", grouping_mark = ".")
-      ),
+      vazao = Vazao %>%
+        str_replace_all("\\.", "") %>%  # remove milhar
+        str_replace_all(",", ".") %>%   # ajusta decimal
+        as.numeric(),
       
-      sed = parse_number(
-        as.character(ConcentracaoMatSuspensao),
-        locale = locale(decimal_mark = ",", grouping_mark = ".")
-      ),
+      sed = ConcentracaoMatSuspensao %>%
+        str_replace_all("\\.", "") %>%
+        str_replace_all(",", ".") %>%
+        as.numeric(),
       
       carga_sed_t_dia = vazao * sed * 0.0864
     ) %>%
@@ -231,9 +268,10 @@ processar_arquivo_sed <- function(arquivo) {
   
   return(dados_processados)
 }
+
 ```
 
-##Passo 4 — Processar todos os arquivos
+##Passo 5: Processar arquivos de sedimentos e gerar carga estimada no dia
 
 ```{r}
 # ============================================================
@@ -247,7 +285,7 @@ sedimentos_longos <- map_dfr(
 
 cat("Total de registros processados:", nrow(sedimentos_longos), "\n")
 
-head(sedimentos_longos)
+head(sedimentos_longos,30)
 
 summary(sedimentos_longos$vazao)
 summary(sedimentos_longos$sed)
@@ -259,83 +297,548 @@ summary(sedimentos_longos$carga_sed_t_dia)
 
 arquivo_sedimentos_longos <- file.path(
   dir_base,
-  "sedimentos_longos.csv"
+  "sedimentos_ANA_V2.csv"
 )
 
-write_csv2(
+write_csv(
   sedimentos_longos,
   arquivo_sedimentos_longos
+)
+
+library(writexl)
+
+arquivo_excel <- file.path(
+  dir_base,
+  "sedimentos_ANA_V2.xlsx"
+)
+
+write_xlsx(
+  sedimentos_longos,
+  path = arquivo_excel
 )
 
 cat("Tabela exportada em:\n", arquivo_sedimentos_longos, "\n")
 
 ```
 
-##Passo 5 —  EXPORTAR TABELA DE CARGA DE SEDIMENTOS
+##Passo 6: Avaliar qualidade das estações disponíveis (ex.: + observações por ano; longe da fronteira)
 
 ```{r}
-# ============================================================
-# EXPORTAR TABELA DE CARGA DE SEDIMENTOS
-# Uma linha por data
-# Uma coluna por estação: Codigo_cargatn_dia
-# ============================================================
+library(readxl)
+library(scales)
 
-tabela_carga_sedimentos <- sedimentos_longos %>%
-  select(
-    Data,
-    Codigo,
-    carga_sed_t_dia
+# ------------------------------------------------------------
+# CONTAGEM ANUAL
+# ------------------------------------------------------------
+contagem_anual <- sedimentos_longos %>%
+  mutate(ano = year(Data)) %>%
+  group_by(Codigo, ano) %>%
+  summarise(
+    n_obs_ano = n(),
+    .groups = "drop"
+  )
+
+# ------------------------------------------------------------
+# QA POR ESTAÇÃO
+# ------------------------------------------------------------
+qa_estacoes <- sedimentos_longos %>%
+  mutate(
+    ano = year(Data),
+    carga_log = log10(carga_sed_t_dia + 1e-6)
   ) %>%
-  pivot_wider(
-    names_from = Codigo,
-    values_from = carga_sed_t_dia,
-    names_glue = "{Codigo}_cargatn_dia"
+  group_by(Codigo) %>%
+  summarise(
+    n_obs_total = n(),
+    n_anos = n_distinct(ano),
+    ano_inicial = min(ano, na.rm = TRUE),
+    ano_final = max(ano, na.rm = TRUE),
+
+    prop_zero_sed = mean(sed <= 0, na.rm = TRUE),
+    prop_zero_vazao = mean(vazao <= 0, na.rm = TRUE),
+    prop_zero_carga = mean(carga_sed_t_dia <= 0, na.rm = TRUE),
+
+    mediana_carga = median(carga_sed_t_dia, na.rm = TRUE),
+    iqr_carga = IQR(carga_sed_t_dia, na.rm = TRUE),
+    sd_log_carga = sd(carga_log, na.rm = TRUE),
+
+    .groups = "drop"
   ) %>%
-  arrange(Data)
+  left_join(
+    contagem_anual %>%
+      group_by(Codigo) %>%
+      summarise(
+        mediana_obs_ano = median(n_obs_ano, na.rm = TRUE),
+        min_obs_ano = min(n_obs_ano, na.rm = TRUE),
+        max_obs_ano = max(n_obs_ano, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = "Codigo"
+  )
 
-head(tabela_carga_sedimentos)
+# ------------------------------------------------------------
+# LISTA DE ESTAÇÕES LONGE DA FRONTEIRA
+# ------------------------------------------------------------
+caminho_excel <- "C:/Users/LeonardoBarbosa/OneDrive - World Resources Institute/Área de Trabalho/CLUA/BACIAS_LONGE_FRONTEIRA.xlsx"
 
-# ============================================================
-# SALVAR TABELA DE CARGA DE SEDIMENTOS
-# ============================================================
+grid_validos <- read_excel(caminho_excel) %>%
+  pull(gridcode) %>%
+  as.character()
 
-arquivo_carga_sedimentos <- file.path(
-  dir_base,
-  "tabela_carga_sedimentos_tn_dia.csv"
+# ------------------------------------------------------------
+# FLAGS DE QA
+# ------------------------------------------------------------
+qa_estacoes <- qa_estacoes %>%
+  mutate(
+    ok_fronteira = Codigo %in% grid_validos,
+    ok_n_obs = n_obs_total >= 12,
+    ok_n_anos = n_anos >= 3,
+    ok_recencia = ano_final >= 2020,
+    ok_zero_sed = prop_zero_sed <= 0.20,
+    ok_zero_vazao = prop_zero_vazao <= 0.05,
+    ok_obs_ano = mediana_obs_ano >= 2,
+
+    score_qa =
+      2 * ok_fronteira +
+      2 * ok_n_obs +
+      2 * ok_n_anos +
+      2 * ok_recencia +
+      1 * ok_zero_sed +
+      1 * ok_zero_vazao +
+      1 * ok_obs_ano,
+
+    classe_qa = case_when(
+      score_qa >= 10 ~ "Alta",
+      score_qa >= 6 ~ "Média",
+      TRUE ~ "Baixa"
+    )
+  )
+
+# Exportar QA
+write_csv(
+  qa_estacoes,
+  "C:/Users/LeonardoBarbosa/OneDrive - World Resources Institute/Área de Trabalho/CLUA/qa_estacoes.csv"
 )
 
-write_csv2(
-  tabela_carga_sedimentos,
-  arquivo_carga_sedimentos
+qa_estacoes %>% count(classe_qa)
+```
+
+## Passo 7: Tabela comparativa de dados modelados e observados, com intervalo esperado de valores
+
+```{r}
+
+carga_anual_estimada <- sedimentos_longos %>%
+  group_by(Codigo, ano = year(Data)) %>%
+  summarise(
+    n_obs_ano = n(),
+    p25 = quantile(carga_sed_t_dia, 0.25, na.rm = TRUE),
+    p50 = median(carga_sed_t_dia, na.rm = TRUE),
+    p75 = quantile(carga_sed_t_dia, 0.75, na.rm = TRUE),
+    min_val = min(carga_sed_t_dia, na.rm = TRUE),
+    max_val = max(carga_sed_t_dia, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+sed_model <- read.csv(
+  r'(C:\Users\LeonardoBarbosa\OneDrive - World Resources Institute\Área de Trabalho\CLUA\Validacao_Sed_V20.csv)',
+  sep = ";"
+)
+library(dplyr)
+library(stringr)
+
+sed_model <- sed_model %>%
+  mutate(
+    SUM = str_replace_all(SUM, ",", "."),
+    SUM = as.numeric(SUM)
+  )
+head(sed_model)
+sed_model_proc <- sed_model %>%
+  transmute(
+    Codigo = as.character(gridcode),
+    carga_modelo_t_dia = SUM / 365
+  )
+
+dados_comparacao <- carga_anual_estimada %>%
+  group_by(Codigo) %>%
+  summarise(
+    p25 = median(p25, na.rm = TRUE),
+    p50 = median(p50, na.rm = TRUE),
+    p75 = median(p75, na.rm = TRUE),
+    min_val = min(min_val, na.rm = TRUE),
+    max_val = max(max_val, na.rm = TRUE),
+    anos_com_dados = n(),
+    .groups = "drop"
+  ) %>%
+  left_join(sed_model_proc, by = "Codigo") %>%
+  left_join(qa_estacoes, by = "Codigo") %>%
+  filter(
+    is.finite(p25),
+    is.finite(p50),
+    is.finite(p75),
+    is.finite(min_val),
+    is.finite(max_val),
+    is.finite(carga_modelo_t_dia)
+  ) %>%
+  mutate(
+    status = case_when(
+      carga_modelo_t_dia < p25 ~ "Subestimado",
+      carga_modelo_t_dia > p75 ~ "Superestimado",
+      TRUE ~ "Dentro da faixa"
+    ),
+    dentro_faixa = status == "Dentro da faixa",
+    razao_modelo_obs = carga_modelo_t_dia / p50,
+    log_ratio = log10((carga_modelo_t_dia + 1e-6) / (p50 + 1e-6)),
+    abs_log_ratio = abs(log_ratio),
+    dentro_fator_2 = razao_modelo_obs >= 0.5 & razao_modelo_obs <= 2,
+    dentro_fator_5 = razao_modelo_obs >= 0.2 & razao_modelo_obs <= 5
+  )
+
+write_csv(
+  dados_comparacao,
+  "C:/Users/LeonardoBarbosa/OneDrive - World Resources Institute/Área de Trabalho/CLUA/dados_comparacao_v20.csv"
+)
+```
+
+## Parte 8: Filtrar dados de estações mais confiáveis
+
+```{r}
+dados_all <- dados_comparacao
+
+dados_calibracao <- dados_comparacao %>%
+  filter(
+    ok_fronteira,
+    classe_qa %in% c("Alta", "Média")
+  )
+
+dados_zoom <- dados_calibracao %>%
+  filter(
+    between(
+      p50,
+      quantile(dados_calibracao$p50, 0.05, na.rm = TRUE),
+      quantile(dados_calibracao$p50, 0.95, na.rm = TRUE)
+    ),
+    between(
+      carga_modelo_t_dia,
+      quantile(dados_calibracao$carga_modelo_t_dia, 0.05, na.rm = TRUE),
+      quantile(dados_calibracao$carga_modelo_t_dia, 0.95, na.rm = TRUE)
+    )
+  )
+
+nrow(dados_all)
+nrow(dados_calibracao)
+nrow(dados_zoom)
+dados_calibracao %>% count(classe_qa)
+
+```
+
+## Parte 9: Visualização
+
+### A1) Gráfico 1:1 (modelado vs. observado)
+
+```{r}
+limites_linear <- quantile(
+  c(dados_calibracao$p50, dados_calibracao$carga_modelo_t_dia),
+  probs = c(0.05, 0.95),
+  na.rm = TRUE
 )
 
-cat("Tabela salva em:\n", arquivo_carga_sedimentos, "\n")
+grafico_linear <- ggplot(
+  dados_calibracao,
+  aes(x = p50, y = carga_modelo_t_dia)
+) +
+  geom_point(
+    aes(color = status, shape = classe_qa),
+    size = 2.4,
+    alpha = 0.85
+  ) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  coord_cartesian(xlim = limites_linear, ylim = limites_linear) +
+  scale_color_manual(
+    values = c(
+      "Dentro da faixa" = "#2ca25f",
+      "Subestimado" = "#2b8cbe",
+      "Superestimado" = "#de2d26"
+    ),
+    name = "Classificação"
+  ) +
+  labs(
+    title = "Comparação 1:1 — Sedimentos (linear)",
+    subtitle = "Conjunto de calibração (QA Alta + Média, longe da fronteira)",
+    x = "Observado p50 (t/dia)",
+    y = "Modelado SDR (t/dia)",
+    shape = "QA"
+  ) +
+  theme_bw()
+
+grafico_linear
+```
+
+### A2) Gráfico 1:1 (modelado vs. observdao) - zoom na maior parte das obs.
+
+```{r}
+# Definir percentis para zoom
+limites_zoom <- quantile(
+  c(dados_calibracao$p50, dados_calibracao$carga_modelo_t_dia),
+  probs = c(0.1, 0.9),
+  na.rm = TRUE
+)
+
+grafico_1_zoom <- ggplot(
+  dados_calibracao,
+  aes(x = p50, y = carga_modelo_t_dia)
+) +
+  geom_point(
+    aes(color = status, shape = classe_qa),
+    size = 2.4,
+    alpha = 0.85
+  ) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  coord_cartesian(
+    xlim = limites_zoom,
+    ylim = limites_zoom
+  ) +
+  scale_color_manual(
+    values = c(
+      "Dentro da faixa" = "#2ca25f",
+      "Subestimado" = "#8e24aa",
+      "Superestimado" = "#de2d26"
+    ),
+    name = "Classificação"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  scale_y_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  labs(
+    title = "Comparação 1:1 — Sedimentos, zoom central",
+    subtitle = "Zoom visual entre os percentis 5 e 95; outliers não removidos da base",
+    x = "Observado p50 (t/dia)",
+    y = "Modelado SDR (t/dia)",
+    shape = "QA"
+  ) +
+  theme_bw()
+
+grafico_1_zoom
+```
+
+### B) Gráfico log 1:1 (modelado vs. observado)
+
+```{r}
+grafico_loglog <- ggplot(
+  dados_calibracao,
+  aes(x = p50, y = carga_modelo_t_dia)
+) +
+  geom_point(
+    aes(color = status, shape = classe_qa),
+    size = 2.4,
+    alpha = 0.85
+  ) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  scale_x_log10(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  scale_y_log10(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  scale_color_manual(
+    values = c(
+      "Dentro da faixa" = "#2ca25f",
+      "Subestimado" = "#2b8cbe",
+      "Superestimado" = "#de2d26"
+    ),
+    name = "Classificação"
+  ) +
+  labs(
+    title = "Comparação 1:1 — Sedimentos (log-log)",
+    subtitle = "(para avaliar ordem de grandeza)",
+    x = "Observado p50 (t/dia)",
+    y = "Modelado SDR (t/dia)",
+    shape = "QA"
+  ) +
+  theme_bw()
+
+grafico_loglog
+```
+
+### C) Gráfico por estação
+
+```{r}
+grafico_estacoes_zoom <- ggplot(
+  dados_zoom %>% arrange(p50),
+  aes(x = reorder(Codigo, p50))
+) +
+  geom_linerange(
+    aes(ymin = p25, ymax = p75),
+    linewidth = 1,
+    color = "gray50"
+  ) +
+  geom_point(
+    aes(y = carga_modelo_t_dia, color = status, shape = classe_qa),
+    size = 2.4
+  ) +
+  scale_color_manual(
+    values = c(
+      "Dentro da faixa" = "#2ca25f",
+      "Subestimado" = "#2b8cbe",
+      "Superestimado" = "#de2d26"
+    ),
+    name = "Classificação"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  labs(
+    title = "Estimativas por estação — zoom filtrado",
+    subtitle = "Faixa cinza = p25–p75 | filtro = QA + percentis 5–95",
+    x = "Estações",
+    y = "Carga de sedimentos (t/dia)",
+    shape = "QA"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "top"
+  ) +
+  coord_flip()
+
+grafico_estacoes_zoom
+```
+
+### D) Gráfico por estação (log)
+
+```{r}
+grafico_estacoes_log <- ggplot(
+  dados_calibracao %>% arrange(p50),
+  aes(x = reorder(Codigo, p50))
+) +
+  geom_linerange(
+    aes(ymin = p25, ymax = p75),
+    linewidth = 1,
+    color = "gray50"
+  ) +
+  geom_point(
+    aes(y = carga_modelo_t_dia, color = status, shape = classe_qa),
+    size = 2.4
+  ) +
+  scale_y_log10(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  scale_color_manual(
+    values = c(
+      "Dentro da faixa" = "#2ca25f",
+      "Subestimado" = "#2b8cbe",
+      "Superestimado" = "#de2d26"
+    ),
+    name = "Classificação"
+  ) +
+  labs(
+    title = "Estimativas por estação — escala log",
+    subtitle = "Faixa cinza = p25–p75 | ponto = modelado",
+    x = "Estações",
+    y = "Carga de sedimentos (t/dia)",
+    shape = "QA"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "top"
+  ) +
+  coord_flip()
+
+grafico_estacoes_log
+```
+
+### E) Gráfico por estação (zoom, evitando outliers)
+
+```{r}
+limite_sup_p50 <- quantile(dados_calibracao$p50, 0.80, na.rm = TRUE)
+limite_sup_modelo <- quantile(dados_calibracao$carga_modelo_t_dia, 0.90, na.rm = TRUE)
+
+dados_estacoes_zoom <- dados_calibracao %>%
+  filter(
+    p50 <= limite_sup_p50,
+    carga_modelo_t_dia <= limite_sup_modelo
+  ) %>%
+  arrange(p50)
+
+
+grafico_estacoes_zoom <- ggplot(
+  dados_estacoes_zoom,
+  aes(x = reorder(Codigo, p50))
+) +
+  geom_linerange(
+    aes(ymin = p25, ymax = p75),
+    linewidth = 1,
+    color = "gray50"
+  ) +
+  geom_point(
+    aes(y = carga_modelo_t_dia, color = status, shape = classe_qa),
+    size = 2.4
+  ) +
+  scale_color_manual(
+    values = c(
+      "Dentro da faixa" = "#2ca25f",
+      "Subestimado" = "#2b8cbe",
+      "Superestimado" = "#de2d26"
+    ),
+    name = "Classificação"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+  ) +
+  labs(
+    title = "Estimativas por estação (exceto outliers)",
+    subtitle = "Mantidos apenas valores até o percentil 90",
+    x = "Estações",
+    y = "Carga de sedimentos (t/dia)",
+    shape = "QA"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "top"
+  ) +
+  coord_flip()
+
+
+grafico_estacoes_zoom
+
+print(count(dados_calibracao,status))
 
 ```
 
-
-## Passo 6 Tabela 2 — Carga de sedimentos
-
 ```{r}
+library(sf)
+library(geobr)
 
-```
+aml <- read_amazon(year=2024,simplified=T)
 
+points <- st_read("D:/leo/CLUA/Snapped_ANA.shp")
 
-##Parte 7 — CALCULAR CARGA DE SEDIMENTOS
+aml <- st_transform(aml, st_crs(points))
 
-```{r}
-
-
-```
-
-
-
-
-E para salvar:
-
-## Passo 8 — Salvar tabela de carga de sedimentos
-
-```{r}
-
-
+plot(st_geometry(aml))
+plot(st_geometry(points), add = TRUE, col = "red", pch = 16)
 ```
