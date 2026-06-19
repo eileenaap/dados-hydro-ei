@@ -1,0 +1,985 @@
+---
+title: "Extrair valores do raster nos pontos de rendimento hídrico"
+author: "Eileen Acosta"
+date: "2026-05-19"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Ler o raster
+Extrair QF do raster para os pontos
+Ler a tabela rendimento_hidrologico_mm_ano.csv
+Juntar essa tabela com os pontos usando Codigo
+Calcular a média das colunas mm_...
+Fazer o gráfico 1:1
+
+
+
+```{r setup, include=FALSE}
+# ============================================================
+# CONFIGURAÇÕES GERAIS — COMPARATIVO dados observados e modelados
+# Agora usando soma do QuickFlow dentro de cada bacia
+# ============================================================
+
+pacotes <- c(
+  "sf",
+  "terra",
+  "dplyr",
+  "readr",
+  "stringr",
+  "ggplot2",
+  "exactextractr"
+)
+
+pacotes_instalados <- pacotes %in% rownames(installed.packages())
+
+if (any(!pacotes_instalados)) {
+  install.packages(pacotes[!pacotes_instalados])
+}
+
+library(sf)
+library(terra)
+library(dplyr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(exactextractr)
+
+# ------------------------------------------------------------
+# Pastas principais
+# ------------------------------------------------------------
+
+dir_base <- "C:/trab/estacoes"
+
+dir_input <- file.path(
+  dir_base,
+  "input_compara"
+)
+
+dir_saida <- file.path(
+  dir_base,
+  "saida_compara"
+)
+
+if (!dir.exists(dir_saida)) {
+  dir.create(dir_saida, recursive = TRUE)
+}
+
+# ------------------------------------------------------------
+# Arquivos de entrada
+# ------------------------------------------------------------
+
+arquivo_raster <- file.path(
+  dir_input,
+  "QF_v10.tif"
+)
+
+arquivo_bacias <- file.path(
+  dir_input,
+  "bacias_comparativo.shp"
+)
+
+arquivo_rendimento <- file.path(
+  dir_input,
+  "rendimento_hidrologico_mm_ano.csv"
+)
+
+# ------------------------------------------------------------
+# Arquivos de saída
+# ------------------------------------------------------------
+
+arquivo_saida_csv <- file.path(
+  dir_saida,
+  "comparativo_bacias_QF_v5.csv"
+)
+
+arquivo_saida_shp <- file.path(
+  dir_saida,
+  "comparativo_bacias_QF_v5.shp"
+)
+
+arquivo_grafico <- file.path(
+  dir_saida,
+  "grafico_1_1_bacias_QF_v5.png"
+)
+
+arquivo_grafico_variacao <- file.path(
+  dir_saida,
+  "grafico_1_1_bacias_QF_v5_com_variacao.png"
+)
+
+arquivo_grafico_faixa <- file.path(
+  dir_saida,
+  "grafico_QF_bacia_dentro_faixa_observada.png"
+)
+
+# ------------------------------------------------------------
+# Parâmetros da média observada
+# ------------------------------------------------------------
+
+ano_final <- 2024
+n_anos_media <- 5
+
+# ------------------------------------------------------------
+# Verificar arquivos de entrada
+# ------------------------------------------------------------
+
+cat("Raster existe? ", file.exists(arquivo_raster), "\n")
+cat("Shapefile de bacias existe? ", file.exists(arquivo_bacias), "\n")
+cat("Tabela de rendimento existe? ", file.exists(arquivo_rendimento), "\n")
+
+if (!file.exists(arquivo_raster)) {
+  stop("Raster não encontrado: ", arquivo_raster)
+}
+
+if (!file.exists(arquivo_bacias)) {
+  stop("Shapefile de bacias não encontrado: ", arquivo_bacias)
+}
+
+if (!file.exists(arquivo_rendimento)) {
+  stop("Tabela de rendimento não encontrada: ", arquivo_rendimento)
+}
+
+```
+
+
+
+```{r}
+# ============================================================
+# PARTE 2 — LER RASTER E BACIAS
+# ============================================================
+
+raster_qf <- rast(arquivo_raster)
+
+bacias <- st_read(arquivo_bacias)
+
+cat("\nCRS do raster:\n")
+print(crs(raster_qf))
+
+cat("\nCRS das bacias:\n")
+print(st_crs(bacias))
+
+cat("\nNúmero de bacias:", nrow(bacias), "\n")
+
+cat("\nColunas do shapefile de bacias:\n")
+print(names(bacias))
+
+# ------------------------------------------------------------
+# Conferir colunas obrigatórias
+# ------------------------------------------------------------
+
+if (!"COD_EST" %in% names(bacias)) {
+  stop("A coluna 'COD_EST' não foi encontrada no shapefile de bacias.")
+}
+
+if (!"areakm2" %in% names(bacias)) {
+  stop("A coluna 'areakm2' não foi encontrada no shapefile de bacias.")
+}
+
+```
+
+```{r}
+# ============================================================
+# PARTE 3 — CALCULAR QUICKFLOW TOTAL POR BACIA
+# ============================================================
+
+# Transformar bacias para o CRS do raster
+bacias_raster_crs <- st_transform(
+  bacias,
+  crs(raster_qf)
+)
+
+# Garantir que COD_EST seja texto
+bacias_raster_crs <- bacias_raster_crs %>%
+  mutate(
+    COD_EST = as.character(COD_EST),
+    areakm2 = as.numeric(areakm2)
+  )
+
+# ------------------------------------------------------------
+# Identificar o nome da camada do raster
+# ------------------------------------------------------------
+
+nome_raster <- names(raster_qf)[1]
+
+cat("Nome da camada raster:", nome_raster, "\n")
+
+# ------------------------------------------------------------
+# Calcular soma exata dos pixels dentro de cada bacia
+# ------------------------------------------------------------
+# exact_extract considera a fração do pixel dentro do polígono.
+# Isso é melhor do que simplesmente pegar pixels pelo centroide.
+
+bacias_raster_crs$qf_soma <- exact_extract(
+  raster_qf,
+  bacias_raster_crs,
+  "sum"
+)
+
+# ------------------------------------------------------------
+# Calcular QuickFlow por área da bacia
+# Fórmula solicitada:
+# qf_bacia = soma do Quick_flow / areakm2
+# ------------------------------------------------------------
+
+bacias_raster_crs <- bacias_raster_crs %>%
+  mutate(
+    qf_bacia = ifelse(
+      !is.na(areakm2) & areakm2 > 0,
+      qf_soma / areakm2,
+      NA_real_
+    )
+  )
+
+# Conferir resultado
+bacias_raster_crs %>%
+  st_drop_geometry() %>%
+  select(COD_EST, areakm2, qf_soma, qf_bacia) %>%
+  head()
+
+```
+
+
+```{r}
+# ============================================================
+# PARTE 4 — LER TABELA DE RENDIMENTO HIDROLÓGICO OBSERVADO
+# ============================================================
+
+rendimento_hidrologico <- read_csv2(
+  arquivo_rendimento,
+  show_col_types = FALSE
+) %>%
+  mutate(
+    Codigo = as.character(Codigo)
+  )
+
+cat("\nColunas da tabela observada:\n")
+print(names(rendimento_hidrologico))
+
+# ------------------------------------------------------------
+# Definir anos usados na média
+# ------------------------------------------------------------
+
+anos_media <- (ano_final - n_anos_media + 1):ano_final
+
+cat("Anos usados na média:\n")
+print(anos_media)
+
+colunas_mm <- paste0("mm_", anos_media)
+
+colunas_mm_existentes <- colunas_mm[
+  colunas_mm %in% names(rendimento_hidrologico)
+]
+
+colunas_mm_faltando <- colunas_mm[
+  !colunas_mm %in% names(rendimento_hidrologico)
+]
+
+cat("Colunas encontradas:\n")
+print(colunas_mm_existentes)
+
+cat("Colunas faltando:\n")
+print(colunas_mm_faltando)
+
+if (length(colunas_mm_existentes) == 0) {
+  stop("Nenhuma coluna dos anos selecionados foi encontrada na tabela observada.")
+}
+
+# ------------------------------------------------------------
+# Calcular estatísticas observadas
+# ------------------------------------------------------------
+
+rendimento_resumo <- rendimento_hidrologico %>%
+  rowwise() %>%
+  mutate(
+    n_anos_validos = sum(!is.na(c_across(all_of(colunas_mm_existentes)))),
+
+    media_mm = ifelse(
+      n_anos_validos > 0,
+      mean(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    ),
+
+    min_mm = ifelse(
+      n_anos_validos > 0,
+      min(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    ),
+
+    max_mm = ifelse(
+      n_anos_validos > 0,
+      max(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    ),
+
+    sd_mm = ifelse(
+      n_anos_validos > 1,
+      sd(c_across(all_of(colunas_mm_existentes)), na.rm = TRUE),
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+```
+
+
+```{r}
+# ============================================================
+# PARTE 5 — JUNTAR QUICKFLOW POR BACIA COM DADOS OBSERVADOS
+# ============================================================
+
+tabela_final <- bacias_raster_crs %>%
+  st_drop_geometry() %>%
+  left_join(
+    rendimento_resumo,
+    by = c("COD_EST" = "Codigo")
+  )
+
+cat("\nNúmero de bacias na tabela final:", nrow(tabela_final), "\n")
+
+cat("\nBacias sem dado observado:\n")
+print(
+  tabela_final %>%
+    filter(is.na(media_mm)) %>%
+    select(COD_EST, areakm2, qf_soma, qf_bacia)
+)
+
+cat("\nBacias sem QuickFlow calculado:\n")
+print(
+  tabela_final %>%
+    filter(is.na(qf_bacia)) %>%
+    select(COD_EST, areakm2, qf_soma, qf_bacia)
+)
+
+head(
+  tabela_final %>%
+    select(
+      COD_EST,
+      areakm2,
+      qf_soma,
+      qf_bacia,
+      all_of(colunas_mm_existentes),
+      n_anos_validos,
+      media_mm,
+      min_mm,
+      max_mm,
+      sd_mm
+    )
+)
+```
+
+```{r}
+# ============================================================
+# PARTE 6 — GRÁFICO 1:1
+# Observado médio vs QuickFlow médio por bacia
+# ============================================================
+
+dados_grafico <- tabela_final %>%
+  filter(
+    !is.na(media_mm),
+    !is.na(qf_bacia),
+    is.finite(media_mm),
+    is.finite(qf_bacia)
+  )
+
+limites <- range(
+  c(dados_grafico$media_mm, dados_grafico$qf_bacia),
+  na.rm = TRUE
+)
+
+margem <- diff(limites) * 0.05
+
+if (margem == 0) {
+  margem <- max(limites, na.rm = TRUE) * 0.05
+}
+
+limites <- c(
+  limites[1] - margem,
+  limites[2] + margem
+)
+
+grafico_1_1 <- ggplot(
+  dados_grafico,
+  aes(
+    x = media_mm,
+    y = qf_bacia
+  )
+) +
+  geom_point(size = 2.5, alpha = 0.75) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  scale_x_continuous(limits = limites) +
+  scale_y_continuous(limits = limites) +
+  coord_equal() +
+  labs(
+    title = "Comparação 1:1 do rendimento hídrico por bacia",
+    subtitle = "Média observada vs QuickFlow calculado por soma dentro da bacia / área da bacia",
+    x = paste0(
+      "Rendimento hídrico observado médio ",
+      min(anos_media),
+      "–",
+      max(anos_media),
+      " (mm/ano)"
+    ),
+    y = "QuickFlow da bacia = soma do raster / área da bacia"
+  ) +
+  theme_bw()
+
+grafico_1_1
+
+ggsave(
+  filename = arquivo_grafico,
+  plot = grafico_1_1,
+  width = 7,
+  height = 7,
+  dpi = 300
+)
+
+```
+
+
+```{r}
+# ============================================================
+# PARTE 7 — GRÁFICO 1:1 COM VARIAÇÃO ANUAL
+# Linha horizontal = min-max observado
+# Ponto = média observada
+# Y = QuickFlow por bacia
+# ============================================================
+
+dados_grafico_variacao <- tabela_final %>%
+  filter(
+    !is.na(media_mm),
+    !is.na(qf_bacia),
+    !is.na(min_mm),
+    !is.na(max_mm),
+    is.finite(media_mm),
+    is.finite(qf_bacia),
+    is.finite(min_mm),
+    is.finite(max_mm)
+  )
+
+limites_variacao <- range(
+  c(
+    dados_grafico_variacao$min_mm,
+    dados_grafico_variacao$max_mm,
+    dados_grafico_variacao$qf_bacia
+  ),
+  na.rm = TRUE
+)
+
+margem_variacao <- diff(limites_variacao) * 0.05
+
+if (margem_variacao == 0) {
+  margem_variacao <- max(limites_variacao, na.rm = TRUE) * 0.05
+}
+
+limites_variacao <- c(
+  limites_variacao[1] - margem_variacao,
+  limites_variacao[2] + margem_variacao
+)
+
+grafico_1_1_variacao <- ggplot(
+  dados_grafico_variacao,
+  aes(
+    x = media_mm,
+    y = qf_bacia
+  )
+) +
+  geom_segment(
+    aes(
+      x = min_mm,
+      xend = max_mm,
+      y = qf_bacia,
+      yend = qf_bacia
+    ),
+    linewidth = 0.6,
+    alpha = 0.6
+  ) +
+  geom_point(
+    size = 2.5,
+    alpha = 0.85
+  ) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  scale_x_continuous(limits = limites_variacao) +
+  scale_y_continuous(limits = limites_variacao) +
+  coord_equal() +
+  labs(
+    title = "Comparação 1:1 com variação anual por bacia",
+    subtitle = "Ponto = média observada | Barra = mínimo-máximo observado | Y = QuickFlow por bacia",
+    x = "Rendimento hídrico observado médio e faixa anual (mm/ano)",
+    y = "QuickFlow da bacia = soma do raster / área da bacia"
+  ) +
+  theme_bw()
+
+grafico_1_1_variacao
+
+ggsave(
+  filename = arquivo_grafico_variacao,
+  plot = grafico_1_1_variacao,
+  width = 7,
+  height = 7,
+  dpi = 300
+)
+
+```
+
+```{r}
+# ============================================================
+# PARTE 8 — QUICKFLOW DA BACIA DENTRO DA FAIXA OBSERVADA?
+# ============================================================
+
+tabela_final <- tabela_final %>%
+  mutate(
+    qf_dentro_faixa = case_when(
+      is.na(qf_bacia) | is.na(min_mm) | is.na(max_mm) ~ NA,
+      qf_bacia >= min_mm & qf_bacia <= max_mm ~ TRUE,
+      TRUE ~ FALSE
+    ),
+
+    classe_qf_faixa = case_when(
+      is.na(qf_dentro_faixa) ~ NA_character_,
+      qf_dentro_faixa ~ "dentro_da_faixa",
+      qf_bacia < min_mm ~ "abaixo_da_faixa",
+      qf_bacia > max_mm ~ "acima_da_faixa"
+    )
+  )
+
+cat("Resumo da comparação QuickFlow da bacia vs faixa observada:\n")
+print(
+  tabela_final %>%
+    count(classe_qf_faixa)
+)
+
+```
+
+```{r}
+# ============================================================
+# PARTE 9 — GRÁFICO QUICKFLOW DA BACIA VS FAIXA OBSERVADA
+# ============================================================
+
+dados_faixa <- tabela_final %>%
+  filter(
+    !is.na(media_mm),
+    !is.na(min_mm),
+    !is.na(max_mm),
+    !is.na(qf_bacia),
+    is.finite(media_mm),
+    is.finite(min_mm),
+    is.finite(max_mm),
+    is.finite(qf_bacia)
+  ) %>%
+  arrange(media_mm) %>%
+  mutate(
+    COD_EST_ord = factor(COD_EST, levels = unique(COD_EST))
+  )
+
+grafico_faixa_quickflow <- ggplot(
+  dados_faixa,
+  aes(
+    x = COD_EST_ord
+  )
+) +
+  geom_segment(
+    aes(
+      y = min_mm,
+      yend = max_mm,
+      xend = COD_EST_ord
+    ),
+    linewidth = 0.7,
+    alpha = 0.6,
+    color = "gray40"
+  ) +
+  geom_point(
+    aes(y = media_mm),
+    size = 2,
+    color = "black"
+  ) +
+  geom_point(
+    aes(
+      y = qf_bacia,
+      color = classe_qf_faixa
+    ),
+    size = 2.6
+  ) +
+  labs(
+    title = "QuickFlow por bacia comparado à faixa anual observada",
+    subtitle = paste0(
+      "Anos usados: ",
+      min(anos_media),
+      "–",
+      max(anos_media),
+      " | Linha = mínimo–máximo | Preto = média observada | Colorido = QuickFlow da bacia"
+    ),
+    x = "Código da bacia / estação",
+    y = "Rendimento hídrico (mm/ano)",
+    color = "Classe QF"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1,
+      size = 5
+    )
+  )
+
+grafico_faixa_quickflow
+
+ggsave(
+  filename = arquivo_grafico_faixa,
+  plot = grafico_faixa_quickflow,
+  width = 14,
+  height = 5,
+  dpi = 300
+)
+```
+
+```{r}
+# ============================================================
+# PARTE 11 — SALVAR RESULTADO FINAL DAS BACIAS
+# Versão recomendada e robusta
+# ============================================================
+
+library(sf)
+library(dplyr)
+library(stringr)
+
+bacias_final <- bacias_raster_crs %>%
+  left_join(
+    tabela_final %>%
+      select(
+        COD_EST,
+        all_of(colunas_mm_existentes),
+        n_anos_validos,
+        media_mm,
+        min_mm,
+        max_mm,
+        sd_mm,
+        qf_soma,
+        qf_bacia,
+        qf_dentro_faixa,
+        classe_qf_faixa
+      ),
+    by = "COD_EST",
+    suffix = c("", "_tab")
+  ) %>%
+  select(
+    -ends_with("_tab")
+  ) %>%
+  rename(
+    cod_est = COD_EST,
+    area_km2 = areakm2,
+    n_anos = n_anos_validos,
+    qf_sum = qf_soma,
+    qf_km2 = qf_bacia,
+    qf_ok = qf_dentro_faixa,
+    qf_class = classe_qf_faixa
+  )
+
+# ------------------------------------------------------------
+# Salvar como GeoPackage — recomendado
+# ------------------------------------------------------------
+
+arquivo_saida_gpkg <- file.path(
+  dir_saida,
+  "comparativo_bacias_QF_v5.gpkg"
+)
+
+if (file.exists(arquivo_saida_gpkg)) {
+  file.remove(arquivo_saida_gpkg)
+}
+
+st_write(
+  bacias_final,
+  arquivo_saida_gpkg,
+  layer = "comparativo_bacias_QF_v5",
+  delete_layer = TRUE
+)
+
+cat("GeoPackage salvo em:\n", arquivo_saida_gpkg, "\n")
+
+# ------------------------------------------------------------
+# Preparar versão para Shapefile
+# ------------------------------------------------------------
+
+bacias_final_shp <- bacias_final
+
+nomes_atributos <- names(st_drop_geometry(bacias_final_shp))
+
+nomes_limpos <- nomes_atributos %>%
+  stringr::str_replace_all("[^A-Za-z0-9_]", "_") %>%
+  stringr::str_to_lower() %>%
+  substr(1, 10) %>%
+  make.unique(sep = "_")
+
+names(bacias_final_shp)[names(bacias_final_shp) != attr(bacias_final_shp, "sf_column")] <- nomes_limpos
+
+# ------------------------------------------------------------
+# Apagar arquivos antigos do shapefile
+# ------------------------------------------------------------
+
+arquivo_saida_shp <- file.path(
+  dir_saida,
+  "comparativo_bacias_QF_v5.shp"
+)
+
+arquivos_shp_antigos <- list.files(
+  dir_saida,
+  pattern = "^comparativo_bacias_QF_v5\\.",
+  full.names = TRUE
+)
+
+arquivos_shp_antigos <- arquivos_shp_antigos[
+  tools::file_ext(arquivos_shp_antigos) %in% c(
+    "shp", "shx", "dbf", "prj", "cpg", "qpj"
+  )
+]
+
+if (length(arquivos_shp_antigos) > 0) {
+  file.remove(arquivos_shp_antigos)
+}
+
+st_write(
+  bacias_final_shp,
+  arquivo_saida_shp,
+  delete_layer = TRUE
+)
+
+cat("Shapefile salvo em:\n", arquivo_saida_shp, "\n")
+
+```
+
+
+```{r}
+# ============================================================
+# PARTE 12 — MAPA DAS BACIAS CLASSIFICADAS
+# ============================================================
+
+bacias_mapa <- bacias_final_shp %>%
+  mutate(
+    qf_faixa = factor(
+      qf_faixa,
+      levels = c(
+        "abaixo_da_faixa",
+        "dentro_da_faixa",
+        "acima_da_faixa"
+      )
+    )
+  )
+
+mapa_bacias_qf <- ggplot() +
+  geom_sf(
+    data = bacias_mapa,
+    aes(fill = qf_faixa),
+    color = "gray40",
+    linewidth = 0.25
+  ) +
+  scale_fill_manual(
+    values = c(
+      "abaixo_da_faixa" = "blue",
+      "dentro_da_faixa" = "darkgreen",
+      "acima_da_faixa" = "red"
+    ),
+    na.value = "gray85"
+  ) +
+  labs(
+    title = "Classificação do QuickFlow por bacia",
+    subtitle = "QuickFlow calculado como soma do raster dentro da bacia / área da bacia",
+    fill = "Classe QF"
+  ) +
+  theme_minimal()
+
+mapa_bacias_qf
+
+```
+
+
+```{r}
+
+# ============================================================
+# PARTE 16 — GRÁFICO QUICKFLOW VS FAIXA OBSERVADA
+#            X = estação
+#            Linha vertical = mínimo-máximo dos anos analisados
+#            Ponto preto = média observada
+#            Ponto colorido = QuickFlow
+# ============================================================
+
+grafico_faixa_quickflow <- ggplot(
+  dados_faixa,
+  aes(
+    x = Codigo_ord
+  )
+) +
+  geom_segment(
+    aes(
+      y = min_mm,
+      yend = max_mm,
+      xend = Codigo_ord
+    ),
+    linewidth = 0.7,
+    alpha = 0.6,
+    color = "gray40"
+  ) +
+  geom_point(
+    aes(
+      y = media_mm
+    ),
+    size = 2,
+    color = "black"
+  ) +
+  geom_point(
+    aes(
+      y = QF_v2,
+      color = classe_qf_faixa
+    ),
+    size = 2.6
+  ) +
+  labs(
+    title = "QuickFlow comparado à faixa anual observada",
+    subtitle = paste0(
+      "Anos usados: ",
+      min(anos_media),
+      "–",
+      max(anos_media),
+      " | Linha = mínimo–máximo | Preto = média observada | Colorido = QuickFlow"
+    ),
+    x = "Estação",
+    y = "Rendimento hídrico (mm/ano)",
+    color = "QuickFlow"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1,
+      size = 5
+    )
+  )
+
+grafico_faixa_quickflow
+
+arquivo_grafico_faixa <- file.path(
+  dir_saida,
+  "grafico_quickflow_dentro_faixa_observada_estacao_x.png"
+)
+
+ggsave(
+  filename = arquivo_grafico_faixa,
+  plot = grafico_faixa_quickflow,
+  width = 24,
+  height = 7,
+  dpi = 300
+)
+
+cat("Gráfico salvo em:\n", arquivo_grafico_faixa, "\n")
+
+# ============================================================
+# PARTE 17 — SALVAR TABELA DA COMPARAÇÃO FINAL
+# ============================================================
+
+arquivo_tabela_faixa <- file.path(
+  dir_saida,
+  "comparacao_quickflow_faixa_observada.csv"
+)
+
+write_csv2(
+  dados_faixa %>%
+    select(
+      Codigo,
+      media_mm,
+      min_mm,
+      max_mm,
+      sd_mm,
+      cv_percentual,
+      classe_cv,
+      QF_v2,
+      qf_dentro_faixa,
+      classe_qf_faixa
+    ),
+  arquivo_tabela_faixa
+)
+
+cat("Tabela salva em:\n", arquivo_tabela_faixa, "\n")
+
+```
+```{r}
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# transformar pontos em sf
+pontos_qf <- st_as_sf(
+  tabela_final,
+  coords = c("Longitd", "Latitud"),
+  crs = 4326
+)
+
+# colocar no mesmo CRS das bacias
+pontos_qf <- st_transform(pontos_qf, st_crs(bacias))
+
+# organizar as classes na ordem desejada
+pontos_qf <- pontos_qf %>%
+  mutate(
+    classe_qf_faixa = factor(
+      classe_qf_faixa,
+      levels = c(
+        "abaixo_da_faixa",
+        "dentro_da_faixa",
+        "acima_da_faixa"
+      )
+    )
+  )
+
+# mapa com bacias + pontos classificados
+ggplot() +
+  geom_sf(
+    data = bacias,
+    fill = "gray95",
+    color = "gray40",
+    linewidth = 0.4
+  ) +
+  geom_sf(
+    data = pontos_qf,
+    aes(
+      color = classe_qf_faixa,
+      size = classe_qf_faixa
+    ),
+    alpha = 0.9
+  ) +
+  scale_color_manual(
+    values = c(
+      "abaixo_da_faixa" = "blue",
+      "dentro_da_faixa" = "darkgreen",
+      "acima_da_faixa"  = "red"
+    ),
+    na.value = "black"
+  ) +
+  scale_size_manual(
+    values = c(
+      "abaixo_da_faixa" = 1,
+      "dentro_da_faixa" = 1,
+      "acima_da_faixa"  = 2
+    )
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Classificação do Quickflow em relação à faixa observada",
+    subtitle = "Pontos classificados sobre as bacias",
+    color = "Classe QF",
+    size = "Classe QF"
+  )
+```
+
+
+
